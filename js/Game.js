@@ -16,7 +16,7 @@ export class Game {
         this.hero = null;
         
         // Input handling
-        this.keys = new Set();
+        this.input = new InputManager();
         this.setupInputHandlers();
     }
 
@@ -27,6 +27,7 @@ export class Game {
         this.lastTime = performance.now();
         this.paused = false;
         this.init();
+        this.input.init(this.canvas);
         this.loop(this.lastTime);
     }
 
@@ -60,9 +61,9 @@ export class Game {
      * @param {number} deltaTime - Time since last update in seconds
      */
     update(deltaTime) {
-        // Construct current game state
         const gameState = {
             deltaTime,
+            input: this.input,
             enemies: this.enemyManager.getAll(),
             towers: this.towerManager.getAll(),
             hero: this.hero
@@ -77,6 +78,10 @@ export class Game {
             this.hero.update(deltaTime, gameState);
             this.handleHeroMovement(deltaTime);
         }
+
+        if (this.debug) {
+            console.log('Input State:', this.input.getDebugInfo());
+        }
     }
 
     /**
@@ -84,15 +89,9 @@ export class Game {
      * @param {number} deltaTime - Time since last update in seconds
      */
     handleHeroMovement(deltaTime) {
-        if (!this.hero) return;
-
-        const HERO_SPEED = 200; // pixels per second
-        const movement = HERO_SPEED * deltaTime;
-
-        if (this.keys.has('ArrowLeft')) this.hero.x -= movement;
-        if (this.keys.has('ArrowRight')) this.hero.x += movement;
-        if (this.keys.has('ArrowUp')) this.hero.y -= movement;
-        if (this.keys.has('ArrowDown')) this.hero.y += movement;
+        if (this.input.isKeyDown('ArrowLeft')) {
+            this.hero.x -= HERO_SPEED * deltaTime;
+        }
     }
 
     /**
