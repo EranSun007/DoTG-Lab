@@ -30,6 +30,7 @@ export class Entity {
         this.health = data.health;
         this.id = data.id || crypto.randomUUID();
         this.sprite = null; // Will be set by child classes
+        this.rotation = 0;
     }
 
     /**
@@ -66,7 +67,25 @@ export class Entity {
             id: this.id,
             x: this.x,
             y: this.y,
-            health: this.health
+            width: this.width,
+            height: this.height,
+            rotation: this.rotation
         };
+    }
+
+    getDrawData() {
+        return {
+            type: this.getAssetType(), // This should be overridden by subclasses
+            x: this.x,
+            y: this.y,
+            width: this.width,
+            height: this.height,
+            rotation: this.rotation
+        };
+    }
+
+    getAssetType() {
+        // This should be overridden by subclasses to return the correct asset key
+        return null;
     }
 } 

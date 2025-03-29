@@ -225,4 +225,33 @@ export class UIManager {
             this.logUIState();
         }
     }
+
+    showError(message) {
+        // Create error element if it doesn't exist
+        let errorElement = document.getElementById('errorMessage');
+        if (!errorElement) {
+            errorElement = document.createElement('div');
+            errorElement.id = 'errorMessage';
+            errorElement.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(255, 0, 0, 0.9);
+                color: white;
+                padding: 20px;
+                border-radius: 5px;
+                z-index: 1000;
+            `;
+            document.body.appendChild(errorElement);
+        }
+
+        // Show error message
+        errorElement.textContent = message;
+
+        // Hide after 5 seconds
+        setTimeout(() => {
+            errorElement.style.display = 'none';
+        }, 5000);
+    }
 } 

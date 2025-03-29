@@ -1,74 +1,75 @@
 export class InputManager {
-    constructor() {
+    constructor(canvas) {
+        this.canvas = canvas;
         this.keys = new Set();
         this.mousePosition = { x: 0, y: 0 };
-        this.mouseButtons = new Set();
-        this.clickedButtons = new Set();
-        this.keyStates = new Map();
+        this.isMousePressed = false;
+        
+        // Bind event handlers
+        this.handleKeyDown = this.handleKeyDown.bind(this);
+        this.handleKeyUp = this.handleKeyUp.bind(this);
+        this.handleMouseMove = this.handleMouseMove.bind(this);
+        this.handleMouseDown = this.handleMouseDown.bind(this);
+        this.handleMouseUp = this.handleMouseUp.bind(this);
+        
+        // Add event listeners
+        window.addEventListener('keydown', this.handleKeyDown);
+        window.addEventListener('keyup', this.handleKeyUp);
+        canvas.addEventListener('mousemove', this.handleMouseMove);
+        canvas.addEventListener('mousedown', this.handleMouseDown);
+        canvas.addEventListener('mouseup', this.handleMouseUp);
     }
 
-    init(canvas) {
-        // Keyboard input
-        window.addEventListener('keydown', (e) => {
-            this.keys.add(e.key);
-            this.keyStates.set(e.key, performance.now());
-        });
+    handleKeyDown(event) {
+        this.keys.add(event.key.toLowerCase());
+        console.log('Key pressed:', event.key.toLowerCase());
+        console.log('Current keys:', Array.from(this.keys));
+    }
 
-        window.addEventListener('keyup', (e) => {
-            this.keys.delete(e.key);
-            this.keyStates.delete(e.key);
-        });
+    handleKeyUp(event) {
+        this.keys.delete(event.key.toLowerCase());
+        console.log('Key released:', event.key.toLowerCase());
+        console.log('Current keys:', Array.from(this.keys));
+    }
 
-        // Mouse input
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            this.mousePosition = {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
-            };
-        });
+    handleMouseMove(event) {
+        const rect = this.canvas.getBoundingClientRect();
+        this.mousePosition = {
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top
+        };
+    }
 
-        canvas.addEventListener('mousedown', (e) => {
-            this.mouseButtons.add(e.button);
-            this.clickedButtons.add(e.button);
-        });
+    handleMouseDown(event) {
+        this.isMousePressed = true;
+    }
 
-        canvas.addEventListener('mouseup', (e) => {
-            this.mouseButtons.delete(e.button);
-        });
+    handleMouseUp(event) {
+        this.isMousePressed = false;
     }
 
     isKeyDown(key) {
-        return this.keys.has(key);
-    }
-
-    getKeyDuration(key) {
-        const startTime = this.keyStates.get(key);
-        return startTime ? (performance.now() - startTime) / 1000 : 0;
+        const isDown = this.keys.has(key.toLowerCase());
+        if (isDown) {
+            console.log('Checking key:', key.toLowerCase(), 'is down:', isDown);
+        }
+        return isDown;
     }
 
     getMousePosition() {
-        return { ...this.mousePosition };
-    }
-
-    isMousePressed(button) {
-        return this.mouseButtons.has(button);
-    }
-
-    isMouseClicked(button) {
-        return this.clickedButtons.has(button);
+        return this.mousePosition;
     }
 
     update() {
-        // Clear single-frame clicks
-        this.clickedButtons.clear();
+        // Update any input state that needs to be updated every frame
     }
 
-    getDebugInfo() {
-        return {
-            pressedKeys: Array.from(this.keys),
-            mousePosition: this.mousePosition,
-            pressedButtons: Array.from(this.mouseButtons)
-        };
+    cleanup() {
+        // Remove event listeners
+        window.removeEventListener('keydown', this.handleKeyDown);
+        window.removeEventListener('keyup', this.handleKeyUp);
+        this.canvas.removeEventListener('mousemove', this.handleMouseMove);
+        this.canvas.removeEventListener('mousedown', this.handleMouseDown);
+        this.canvas.removeEventListener('mouseup', this.handleMouseUp);
     }
 } 

@@ -11,6 +11,7 @@ export const AssetConfig = {
     
     // Environment
     BACKGROUND_TILE: 'assets/background_tile.png',
+    PATH: 'assets/path.png',
     
     // Projectiles
     PROJECTILE_ARROW: 'assets/projectile_arrow.png',

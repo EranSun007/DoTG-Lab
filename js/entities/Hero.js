@@ -13,7 +13,21 @@ export class Hero extends Entity {
         this.attackSpeed = data.attackSpeed || 2;
         this.lastAttackTime = 0;
         this.projectiles = [];
-        this.rotation = 0;
+    }
+
+    getAssetType() {
+        return 'HERO';
+    }
+
+    getDrawData() {
+        return {
+            type: this.getAssetType(),
+            x: this.x,
+            y: this.y,
+            width: this.width,
+            height: this.height,
+            range: this.range
+        };
     }
 
     /**
@@ -21,6 +35,8 @@ export class Hero extends Entity {
      * @param {Object} gameState - Current game state containing enemies, towers, and hero
      */
     update(deltaTime, gameState) {
+        const currentTime = performance.now() / 1000;
+        
         // Find closest enemy in range
         let target = null;
         let closestDistance = this.range;
@@ -37,18 +53,10 @@ export class Hero extends Entity {
             }
         });
 
-        // Update rotation to face target
-        if (target) {
-            const dx = target.x - (this.x + this.width/2);
-            const dy = target.y - (this.y + this.height/2);
-            this.rotation = Math.atan2(dy, dx);
-
-            // Auto-attack if enemy in range
-            const currentTime = performance.now();
-            if (currentTime - this.lastAttackTime > 1000 / this.attackSpeed) {
-                this.attack(target);
-                this.lastAttackTime = currentTime;
-            }
+        // Attack if target found and cooldown is ready
+        if (target && currentTime - this.lastAttackTime >= 1 / this.attackSpeed) {
+            this.attack(target);
+            this.lastAttackTime = currentTime;
         }
 
         // Update projectiles
@@ -66,10 +74,9 @@ export class Hero extends Entity {
             y: this.y + this.height/2,
             width: 8,
             height: 8,
-            speed: 5,
+            speed: 300, // Increased speed to match tower projectiles
             damage: this.damage,
-            target: target,
-            color: 'lime'
+            target: target
         });
 
         this.projectiles.push(projectile);
@@ -79,20 +86,6 @@ export class Hero extends Entity {
         // Draw hero base
         ctx.fillStyle = 'green';
         ctx.fillRect(this.x, this.y, this.width, this.height);
-
-        // Draw direction indicator
-        ctx.save();
-        ctx.translate(this.x + this.width/2, this.y + this.height/2);
-        ctx.rotate(this.rotation);
-        ctx.fillStyle = 'lightgreen';
-        ctx.fillRect(0, -4, this.width/2, 8);
-        ctx.restore();
-
-        // Draw range indicator
-        ctx.strokeStyle = 'rgba(0, 255, 0, 0.2)';
-        ctx.beginPath();
-        ctx.arc(this.x + this.width/2, this.y + this.height/2, this.range, 0, Math.PI * 2);
-        ctx.stroke();
 
         // Draw projectiles
         this.projectiles.forEach(projectile => projectile.draw(ctx));

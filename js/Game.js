@@ -6,18 +6,45 @@ import { EnemyConfig } from './config/EnemyConfig.js';
 import { WaveConfig } from './config/WaveConfig.js';
 import { GameConstants } from './config/GameConstants.js';
 import { InputManager } from './managers/InputManager.js';
-import { Renderer } from './managers/Renderer.js';
+import { Renderer } from './renderer/Renderer.js';
+import { AssetLoader } from './utils/AssetLoader.js';
+import { AssetConfig } from './config/AssetConfig.js';
+import { UIManager } from './managers/UIManager.js';
 
 export class Game {
     constructor(canvas, uiManager) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
+        this.assetLoader = new AssetLoader();
+        this.renderer = new Renderer(this.ctx, this.assetLoader);
+        this.inputManager = new InputManager(canvas);
+        this.enemyManager = new EnemyManager();
+        this.towerManager = new TowerManager();
         this.uiManager = uiManager;
         
-        // Time management
+        // Initialize hero at center of canvas
+        this.hero = new Hero({
+            x: canvas.width / 2 - 24,
+            y: canvas.height / 2 - 24,
+            width: 48,
+            height: 48,
+            health: 200,
+            speed: 2,
+            range: 120,
+            damage: 15,
+            attackSpeed: 2
+        });
+        this.entities = new Map();
+        this.entities.set(this.hero.id, this.hero);
+        
+        this.isLoading = true;
+        this.isRunning = false;
         this.lastTime = 0;
-        this.deltaTime = 0;
+        this.debug = false;
         this.speedMultiplier = 1;
+        
+        // Time management
+        this.deltaTime = 0;
         this.MAX_DELTA = 0.05;
         
         // Game state
@@ -28,37 +55,60 @@ export class Game {
         this.canStartWave = true;
         this.selectedTowerType = null;
         this.waveInProgress = false;
-        
-        // Initialize managers
-        this.enemyManager = new EnemyManager();
-        this.towerManager = new TowerManager();
-        
-        // Hero as singleton
-        this.hero = null;
-        
-        // Input handling
-        this.input = new InputManager();
-        this.input.init(canvas);  // Initialize input manager with canvas
+    }
 
-        // Renderer
-        this.renderer = new Renderer(canvas);
+    async initialize() {
+        try {
+            console.log('Game initialization started');
+            
+            // Load all game assets
+            console.log('Loading assets...');
+            await this.assetLoader.load(AssetConfig);
+            console.log('Assets loaded successfully');
+            
+            // Initialize game state
+            console.log('Initializing game state...');
+            this.init();
+            
+            // Hide loading overlay with a slight delay to ensure smooth transition
+            const loadingOverlay = document.getElementById('loading-overlay');
+            if (loadingOverlay) {
+                // Add hidden class (triggers transition)
+                loadingOverlay.classList.add('hidden');
+                
+                // Remove from DOM after transition
+                setTimeout(() => {
+                    loadingOverlay.style.display = 'none';
+                }, 300); // Match the CSS transition duration
+            }
+            
+            // Update loading state and start game
+            this.isLoading = false;
+            console.log('Starting game loop...');
+            this.start();
+            
+            console.log('Game initialization completed');
+        } catch (error) {
+            console.error('Failed to initialize game:', error);
+            // Show error in loading overlay instead of hiding it
+            const loadingOverlay = document.getElementById('loading-overlay');
+            if (loadingOverlay) {
+                const content = loadingOverlay.querySelector('.loading-content');
+                if (content) {
+                    content.innerHTML = 'Failed to load game assets.<br>Please refresh the page.';
+                } else {
+                    loadingOverlay.textContent = 'Failed to load game assets. Please refresh the page.';
+                }
+                loadingOverlay.style.backgroundColor = 'rgba(102, 0, 0, 0.95)';
+            }
+            throw error;
+        }
     }
 
     /**
      * Initialize the game
      */
     init() {
-        // Create hero
-        this.hero = new Hero({
-            x: 300,
-            y: 300,
-            width: 40,
-            height: 40,
-            health: 200,
-            range: 150,
-            attackSpeed: 3
-        });
-
         // Create 4 enemies in different positions
         const enemyPositions = [
             { x: 0, y: 150 },    // Top path
@@ -67,17 +117,9 @@ export class Game {
             { x: 100, y: 300 }   // Already on the field
         ];
 
-        enemyPositions.forEach(pos => {
-            this.enemyManager.addEntity({
-                x: pos.x,
-                y: pos.y,
-                width: 30,
-                height: 30,
-                health: 100,
-                speed: 1.5
-            });
-        });
-
+        // Store enemy positions for later use
+        this.enemyPositions = enemyPositions;
+        
         // Bind tower selection handlers
         this.uiManager.bindTowerButtons({
             ranged: () => this.selectTower('ranged'),
@@ -187,44 +229,39 @@ export class Game {
      * Start a new wave of enemies
      */
     startWave() {
-        if (!this.canStartWave || this.waveInProgress) {
-            console.log('Cannot start wave: Wave already in progress or not ready');
-            return;
-        }
-
+        if (this.waveInProgress || !this.canStartWave) return;
+        
         const waveConfig = this.getCurrentWaveConfig();
-        if (!waveConfig) {
-            console.log('No more waves available!');
-            return;
-        }
+        if (!waveConfig) return;
 
-        console.log(`Starting wave ${this.currentWave}: ${waveConfig.description}`);
         this.waveInProgress = true;
-
-        // Spawn enemies based on wave config
+        this.canStartWave = false;
+        
+        // Create enemies based on wave configuration
         waveConfig.enemies.forEach(enemyGroup => {
             const enemyConfig = EnemyConfig[enemyGroup.type];
-            if (!enemyConfig) {
-                console.error(`Invalid enemy type: ${enemyGroup.type}`);
-                return;
-            }
-
-            for (let i = 0; i < enemyGroup.count; i++) {
-                setTimeout(() => {
+            if (enemyConfig) {
+                for (let i = 0; i < enemyGroup.count; i++) {
+                    // Calculate staggered spawn positions
+                    const spawnOffset = i * 100; // Space enemies apart
                     this.enemyManager.addEntity({
-                        ...enemyConfig,
-                        x: 0,
-                        y: 150 + Math.random() * 300  // Random path
+                        x: -spawnOffset, // Start off-screen
+                        y: this.ctx.canvas.height / 2, // Center vertically
+                        width: enemyConfig.width,
+                        height: enemyConfig.height,
+                        health: enemyConfig.health,
+                        speed: enemyConfig.speed,
+                        type: enemyGroup.type,
+                        value: enemyConfig.value
                     });
-                }, i * enemyGroup.delay * 1000);
+                }
             }
         });
-
-        // Update wave state
-        this.currentWave++;
-        this.canStartWave = false;
+        
+        // Update UI
         this.uiManager.updateWaveNumber(this.currentWave);
         this.uiManager.toggleStartWaveButton(false);
+        this.currentWave++;
     }
 
     /**
@@ -233,16 +270,16 @@ export class Game {
      */
     update(deltaTime) {
         // Update input state
-        this.input.update();
+        this.inputManager.update();
 
         // Check for spacebar press to place tower
-        if (this.input.isKeyDown(' ')) {
+        if (this.inputManager.isKeyDown(' ')) {
             this.placeTower();
         }
 
         const gameState = {
             deltaTime,
-            input: this.input,
+            input: this.inputManager,
             enemies: this.enemyManager.getAll(),
             towers: this.towerManager.getAll(),
             hero: this.hero,
@@ -265,9 +302,13 @@ export class Game {
         // Remove dead entities and handle rewards
         this.enemyManager.getAll().forEach(enemy => {
             if (!enemy.isAlive()) {
-                this.enemyManager.removeEntity(enemy.id);
-                this.gold += EnemyConfig[enemy.type]?.value || 10;
+                // Get the correct enemy config based on type
+                const enemyConfig = EnemyConfig[enemy.type] || EnemyConfig.basic;
+                // Add gold reward
+                this.gold += enemyConfig.value;
                 this.uiManager.updateGold(this.gold);
+                // Remove the enemy
+                this.enemyManager.removeEntity(enemy.id);
             }
         });
 
@@ -312,24 +353,68 @@ export class Game {
      * @param {number} deltaTime - Time since last update in seconds
      */
     handleHeroMovement(deltaTime) {
-        const speed = 200 * deltaTime; // Adjusted for delta time
-        if (this.input.isKeyDown('ArrowLeft')) this.hero.x -= speed;
-        if (this.input.isKeyDown('ArrowRight')) this.hero.x += speed;
-        if (this.input.isKeyDown('ArrowUp')) this.hero.y -= speed;
-        if (this.input.isKeyDown('ArrowDown')) this.hero.y += speed;
+        const speed = 400 * deltaTime;
+        
+        // Get input state
+        const left = this.inputManager.isKeyDown('ArrowLeft');
+        const right = this.inputManager.isKeyDown('ArrowRight');
+        const up = this.inputManager.isKeyDown('ArrowUp');
+        const down = this.inputManager.isKeyDown('ArrowDown');
+
+        // Calculate movement
+        let dx = 0;
+        let dy = 0;
+
+        if (left) dx -= 1;
+        if (right) dx += 1;
+        if (up) dy -= 1;
+        if (down) dy += 1;
+
+        // Normalize diagonal movement
+        if (dx !== 0 && dy !== 0) {
+            const factor = 1 / Math.sqrt(2);
+            dx *= factor;
+            dy *= factor;
+        }
+
+        // Apply movement
+        this.hero.x += dx * speed;
+        this.hero.y += dy * speed;
+
+        // Keep hero within canvas bounds
+        this.hero.x = Math.max(0, Math.min(this.canvas.width - this.hero.width, this.hero.x));
+        this.hero.y = Math.max(0, Math.min(this.canvas.height - this.hero.height, this.hero.y));
     }
 
     /**
      * Render game state
      */
     render() {
-        // Clean rendering through Renderer
+        // Clear the canvas
         this.renderer.clear();
+        
+        // Draw background
+        this.renderer.drawBackground();
+        
+        // Draw all game entities
         this.renderer.drawAll(this.enemyManager.getAll());
         this.renderer.drawAll(this.towerManager.getAll());
         
+        // Draw projectiles from all towers
+        this.towerManager.getAll().forEach(tower => {
+            this.renderer.drawAll(tower.projectiles);
+        });
+        
+        // Draw hero if exists
         if (this.hero) {
             this.renderer.drawEntity(this.hero);
+        }
+
+        // Draw debug overlay if debug mode is enabled
+        if (this.debug) {
+            const fps = Math.round(1 / this.deltaTime);
+            const entityCount = this.entities.size;
+            this.renderer.drawDebugOverlay(fps, entityCount);
         }
     }
 
@@ -337,26 +422,37 @@ export class Game {
      * Start the game loop
      */
     start() {
-        // Initialize the game
-        this.init();
+        if (this.isLoading) {
+            console.warn('Cannot start game while assets are still loading');
+            return;
+        }
         
-        // Start the game loop
-        const gameLoop = (currentTime) => {
-            // Calculate delta time
-            this.deltaTime = Math.min((currentTime - this.lastTime) / 1000, this.MAX_DELTA);
-            this.lastTime = currentTime;
+        if (this.isRunning) {
+            console.warn('Game is already running');
+            return;
+        }
+        
+        console.log('Game loop starting...');
+        this.isRunning = true;
+        this.lastTime = performance.now();
+        requestAnimationFrame(() => this.loop());
+    }
 
-            // Update and render if not paused
-            if (!this.paused) {
-                this.update(this.deltaTime);
-                this.render();
-            }
+    loop() {
+        if (!this.isRunning) {
+            console.log('Game loop stopped');
+            return;
+        }
+        
+        const currentTime = performance.now();
+        this.deltaTime = Math.min((currentTime - this.lastTime) / 1000, this.MAX_DELTA);
+        this.lastTime = currentTime;
 
-            // Request next frame
-            requestAnimationFrame(gameLoop);
-        };
+        if (!this.paused) {
+            this.update(this.deltaTime);
+            this.render();
+        }
 
-        // Start the loop
-        requestAnimationFrame(gameLoop);
+        requestAnimationFrame(() => this.loop());
     }
 } 
