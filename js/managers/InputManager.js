@@ -1,3 +1,8 @@
+import { Debug } from '../utils/Debug.js';
+
+/**
+ * Manages user input and event handling
+ */
 export class InputManager {
     constructor(canvas) {
         this.canvas = canvas;
@@ -6,6 +11,7 @@ export class InputManager {
         this.mousePosition = { x: 0, y: 0 };
         this.isMousePressed = false;
         this.lastMousePressed = false; // Track previous state for click detection
+        this.debug = true; // Added for the new isKeyDown method
         
         // Bind event handlers
         this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -20,6 +26,8 @@ export class InputManager {
         canvas.addEventListener('mousemove', this.handleMouseMove);
         canvas.addEventListener('mousedown', this.handleMouseDown);
         canvas.addEventListener('mouseup', this.handleMouseUp);
+
+        Debug.log('InputManager initialized');
     }
 
     handleKeyDown(event) {
@@ -54,7 +62,7 @@ export class InputManager {
 
     isKeyDown(key) {
         const isDown = this.keys.has(key.toLowerCase());
-        if (isDown) {
+        if (this.debug) {
             console.log('Checking key:', key.toLowerCase(), 'is down:', isDown);
         }
         return isDown;
@@ -85,12 +93,24 @@ export class InputManager {
         }
     }
 
-    cleanup() {
-        // Remove event listeners
+    /**
+     * Clean up and destroy the manager
+     */
+    destroy() {
+        // Remove all event listeners
         window.removeEventListener('keydown', this.handleKeyDown);
         window.removeEventListener('keyup', this.handleKeyUp);
         this.canvas.removeEventListener('mousemove', this.handleMouseMove);
         this.canvas.removeEventListener('mousedown', this.handleMouseDown);
         this.canvas.removeEventListener('mouseup', this.handleMouseUp);
+
+        // Clear state
+        this.keys.clear();
+        this.keys = null;
+        this.mousePosition = { x: 0, y: 0 };
+        this.isMousePressed = false;
+        this.previousKeys.clear();
+
+        Debug.log('InputManager destroyed');
     }
 } 

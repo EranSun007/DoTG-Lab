@@ -1,3 +1,11 @@
+import { GameConstants } from '../config/GameConstants.js';
+import { UIConfig } from '../config/UIConfig.js';
+import { UILabels } from '../config/UILabels.js';
+import { Debug } from '../utils/Debug.js';
+
+/**
+ * Manages UI elements and event handlers
+ */
 export class UIManager {
     constructor() {
         // UI Elements
@@ -5,10 +13,7 @@ export class UIManager {
         this.livesDisplay = null;
         this.waveNumberDisplay = null;
         this.startWaveButton = null;
-        this.towerButtons = {
-            ranged: null,
-            aoe: null
-        };
+        this.towerButtons = new Map();
 
         // Event Handlers
         this.towerButtonHandlers = {};
@@ -17,6 +22,139 @@ export class UIManager {
         // Visual Feedback
         this.flashTimeout = null;
         this.isDebugMode = false;
+
+        this.debug = false;
+        this.elements = new Map();
+        this.eventHandlers = new Map();
+        Debug.log('UIManager initialized');
+    }
+
+    /**
+     * Add a UI element
+     * @param {string} id - Element ID
+     * @param {HTMLElement} element - UI element
+     */
+    addElement(id, element) {
+        this.elements.set(id, element);
+    }
+
+    /**
+     * Remove a UI element
+     * @param {string} id - Element ID
+     */
+    removeElement(id) {
+        const element = this.elements.get(id);
+        if (element) {
+            // Remove any event handlers for this element
+            const handlers = this.eventHandlers.get(id);
+            if (handlers) {
+                handlers.forEach(({ type, handler }) => {
+                    element.removeEventListener(type, handler);
+                });
+                this.eventHandlers.delete(id);
+            }
+            // Remove the element from DOM if it's attached
+            if (element.parentNode) {
+                element.parentNode.removeChild(element);
+            }
+            this.elements.delete(id);
+        }
+    }
+
+    /**
+     * Add an event handler to a UI element
+     * @param {string} elementId - Element ID
+     * @param {string} eventType - Event type (e.g., 'click')
+     * @param {Function} handler - Event handler function
+     */
+    addEventHandler(elementId, eventType, handler) {
+        const element = this.elements.get(elementId);
+        if (element) {
+            element.addEventListener(eventType, handler);
+            
+            // Store handler for cleanup
+            if (!this.eventHandlers.has(elementId)) {
+                this.eventHandlers.set(elementId, []);
+            }
+            this.eventHandlers.get(elementId).push({ type: eventType, handler });
+        }
+    }
+
+    /**
+     * Remove all event handlers for a UI element
+     * @param {string} elementId - Element ID
+     */
+    removeEventHandlers(elementId) {
+        const element = this.elements.get(elementId);
+        const handlers = this.eventHandlers.get(elementId);
+        
+        if (element && handlers) {
+            handlers.forEach(({ type, handler }) => {
+                element.removeEventListener(type, handler);
+            });
+            this.eventHandlers.delete(elementId);
+        }
+    }
+
+    /**
+     * Show a UI element
+     * @param {string} id - Element ID
+     */
+    showElement(id) {
+        const element = this.elements.get(id);
+        if (element) {
+            element.style.display = '';
+        }
+    }
+
+    /**
+     * Hide a UI element
+     * @param {string} id - Element ID
+     */
+    hideElement(id) {
+        const element = this.elements.get(id);
+        if (element) {
+            element.style.display = 'none';
+        }
+    }
+
+    /**
+     * Update UI element text content
+     * @param {string} id - Element ID
+     * @param {string} text - New text content
+     */
+    updateText(id, text) {
+        const element = this.elements.get(id);
+        if (element) {
+            element.textContent = text;
+        }
+    }
+
+    /**
+     * Clear all UI elements and event handlers
+     */
+    clear() {
+        // Remove all event handlers
+        this.eventHandlers.forEach((handlers, elementId) => {
+            this.removeEventHandlers(elementId);
+        });
+
+        // Remove all elements
+        this.elements.forEach((element, id) => {
+            this.removeElement(id);
+        });
+
+        Debug.log('UIManager cleared');
+    }
+
+    /**
+     * Clean up and destroy the manager
+     */
+    destroy() {
+        this.clear();
+        this.elements = null;
+        this.eventHandlers = null;
+        Debug.log('UIManager destroyed');
     }
 
     // Initialize UI elements
@@ -25,8 +163,8 @@ export class UIManager {
         this.livesDisplay = elements.livesDisplay;
         this.waveNumberDisplay = elements.waveNumberDisplay;
         this.startWaveButton = elements.startWaveButton;
-        this.towerButtons.ranged = elements.towerButtons.ranged;
-        this.towerButtons.aoe = elements.towerButtons.aoe;
+        this.towerButtons.set('ranged', elements.towerButtons.ranged);
+        this.towerButtons.set('aoe', elements.towerButtons.aoe);
 
         // Set up event listeners
         this.setupEventListeners();
@@ -41,36 +179,27 @@ export class UIManager {
         window.addEventListener('keydown', (e) => {
             if (e.altKey && e.key.toLowerCase() === 'd') {
                 this.isDebugMode = !this.isDebugMode;
-                console.log(`Debug mode ${this.isDebugMode ? 'enabled' : 'disabled'}`);
+                Debug.log(`Debug mode ${this.isDebugMode ? 'enabled' : 'disabled'}`);
             }
         });
     }
 
-    // Set up event listeners for buttons
+    // Set up event listeners
     setupEventListeners() {
+        // Tower button click handlers
+        this.towerButtons.forEach((button, type) => {
+            button.addEventListener('click', () => {
+                if (this.towerButtonHandlers[type]) {
+                    this.towerButtonHandlers[type]();
+                }
+            });
+        });
+
+        // Start wave button click handler
         if (this.startWaveButton) {
             this.startWaveButton.addEventListener('click', () => {
                 if (this.startWaveHandler) {
                     this.startWaveHandler();
-                    this.flashButton(this.startWaveButton, 'clicked');
-                }
-            });
-        }
-
-        if (this.towerButtons.ranged) {
-            this.towerButtons.ranged.addEventListener('click', () => {
-                if (this.towerButtonHandlers.ranged) {
-                    this.towerButtonHandlers.ranged();
-                    this.flashButton(this.towerButtons.ranged, 'selected');
-                }
-            });
-        }
-
-        if (this.towerButtons.aoe) {
-            this.towerButtons.aoe.addEventListener('click', () => {
-                if (this.towerButtonHandlers.aoe) {
-                    this.towerButtonHandlers.aoe();
-                    this.flashButton(this.towerButtons.aoe, 'selected');
                 }
             });
         }
@@ -81,21 +210,21 @@ export class UIManager {
         if (!button) return;
         
         button.classList.add(className);
-        setTimeout(() => button.classList.remove(className), 200);
+        setTimeout(() => button.classList.remove(className), UIConfig.ANIMATIONS.BUTTON_FLASH);
     }
 
     flashDamage(element) {
         if (!element) return;
         
         element.classList.add('damage-flash');
-        setTimeout(() => element.classList.remove('damage-flash'), 500);
+        setTimeout(() => element.classList.remove('damage-flash'), UIConfig.ANIMATIONS.DAMAGE_FLASH);
     }
 
     // Update UI state methods with visual feedback
     updateGold(amount) {
         if (this.goldDisplay) {
             const oldAmount = parseInt(this.goldDisplay.textContent.split(': ')[1]) || 0;
-            this.goldDisplay.textContent = `Gold: ${amount}`;
+            this.goldDisplay.textContent = `${UILabels.STATUS.GOLD}${amount}`;
             
             // Visual feedback for gold changes
             if (amount > oldAmount) {
@@ -109,7 +238,7 @@ export class UIManager {
     updateLives(count) {
         if (this.livesDisplay) {
             const oldCount = parseInt(this.livesDisplay.textContent.split(': ')[1]) || 0;
-            this.livesDisplay.textContent = `Lives: ${count}`;
+            this.livesDisplay.textContent = `${UILabels.STATUS.LIVES}${count}`;
             
             // Visual feedback for life changes
             if (count < oldCount) {
@@ -118,15 +247,21 @@ export class UIManager {
         }
     }
 
-    updateWaveNumber(number) {
+    updateWaveNumber(wave) {
         if (this.waveNumberDisplay) {
-            const oldNumber = parseInt(this.waveNumberDisplay.textContent.split(': ')[1]) || 0;
-            this.waveNumberDisplay.textContent = `Wave: ${number}`;
-            
-            // Visual feedback for wave changes
-            if (number > oldNumber) {
-                this.flashButton(this.waveNumberDisplay, 'wave-increase');
-            }
+            this.waveNumberDisplay.textContent = `${UILabels.STATUS.WAVE}${wave}`;
+        }
+    }
+
+    setSelectedTower(type) {
+        // Remove selected class from all buttons
+        this.towerButtons.forEach(button => {
+            button.classList.remove('selected');
+        });
+
+        // Add selected class to specified button
+        if (type && this.towerButtons.has(type)) {
+            this.towerButtons.get(type).classList.add('selected');
         }
     }
 
@@ -134,17 +269,8 @@ export class UIManager {
         if (this.startWaveButton) {
             this.startWaveButton.disabled = !enabled;
             this.startWaveButton.classList.toggle('disabled', !enabled);
+            this.startWaveButton.textContent = UILabels.BUTTONS.START_WAVE;
         }
-    }
-
-    setSelectedTower(type) {
-        // Update visual state of tower buttons
-        Object.entries(this.towerButtons).forEach(([towerType, button]) => {
-            if (button) {
-                button.classList.toggle('selected', towerType === type);
-                button.classList.toggle('disabled', false); // Re-enable when selecting
-            }
-        });
     }
 
     // Bind event handlers
@@ -161,14 +287,14 @@ export class UIManager {
         if (!this.isDebugMode) return;
         
         const state = this.getState();
-        console.group('UI State Debug');
-        console.log('Current State:', state);
-        console.log('Button States:', {
-            startWave: this.startWaveButton?.disabled ? 'disabled' : 'enabled',
-            rangedTower: this.towerButtons.ranged?.classList.toString(),
-            aoeTower: this.towerButtons.aoe?.classList.toString()
+        Debug.log('UI State Debug', {
+            currentState: state,
+            buttonStates: {
+                startWave: this.startWaveButton?.disabled ? 'disabled' : 'enabled',
+                rangedTower: this.towerButtons.get('ranged')?.classList.toString(),
+                aoeTower: this.towerButtons.get('aoe')?.classList.toString()
+            }
         });
-        console.groupEnd();
     }
 
     // Get current UI state with validation
@@ -182,7 +308,6 @@ export class UIManager {
                 .find(([_, button]) => button?.classList.contains('selected'))?.[0] || null
         };
 
-        // Validate state in debug mode
         if (this.isDebugMode) {
             this.validateState(state);
         }
@@ -199,7 +324,7 @@ export class UIManager {
         if (state.waveNumber < 1) issues.push('Wave number must be at least 1');
         
         if (issues.length > 0) {
-            console.warn('UI State Validation Issues:', issues);
+            Debug.log('UI State Validation Issues:', issues);
         }
     }
 
@@ -227,7 +352,6 @@ export class UIManager {
     }
 
     showError(message) {
-        // Create error element if it doesn't exist
         let errorElement = document.getElementById('errorMessage');
         if (!errorElement) {
             errorElement = document.createElement('div');
@@ -237,21 +361,20 @@ export class UIManager {
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                background: rgba(255, 0, 0, 0.9);
+                background: ${UIConfig.ERROR_DISPLAY.BACKGROUND};
                 color: white;
                 padding: 20px;
                 border-radius: 5px;
-                z-index: 1000;
+                z-index: ${UIConfig.ERROR_DISPLAY.Z_INDEX};
             `;
             document.body.appendChild(errorElement);
         }
 
-        // Show error message
         errorElement.textContent = message;
+        errorElement.style.display = 'block';
 
-        // Hide after 5 seconds
         setTimeout(() => {
             errorElement.style.display = 'none';
-        }, 5000);
+        }, UIConfig.ANIMATIONS.ERROR_DISPLAY);
     }
 } 

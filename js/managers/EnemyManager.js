@@ -1,4 +1,5 @@
 import { Enemy } from '../entities/Enemy.js';
+import { Debug } from '../utils/Debug.js';
 
 /**
  * Manages all enemy entities in the game
@@ -79,10 +80,10 @@ export class EnemyManager {
      * @param {Array} states - Array of enemy states
      */
     syncState(states) {
-        this.enemies = [];
+        this.clear();
         states.forEach(state => {
             const enemy = new Enemy(state);
-            this.enemies.push(enemy);
+            this.enemies.set(enemy.id, enemy);
         });
     }
 
@@ -90,6 +91,16 @@ export class EnemyManager {
      * Clear all enemies
      */
     clear() {
-        this.enemies = [];
+        this.enemies.clear();
+        Debug.log('EnemyManager cleared');
+    }
+
+    /**
+     * Clean up and destroy the manager
+     */
+    destroy() {
+        this.clear();
+        this.enemies = null;
+        Debug.log('EnemyManager destroyed');
     }
 } 

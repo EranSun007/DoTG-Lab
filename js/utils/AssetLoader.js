@@ -1,3 +1,5 @@
+import { GameConstants } from '../config/GameConstants.js';
+
 /**
  * AssetLoader handles asynchronous loading and caching of game assets
  */
@@ -5,6 +7,7 @@ export class AssetLoader {
     constructor() {
         this.assets = new Map();
         this.loadingStatus = new Map();
+        this.debug = false;
     }
 
     /**
@@ -13,10 +16,14 @@ export class AssetLoader {
      * @returns {Promise<void>} Resolves when all assets are loaded
      */
     async load(assetConfig) {
-        console.log('Starting asset loading...', Object.keys(assetConfig));
+        if (this.debug) {
+            console.log('Starting asset loading...', Object.keys(assetConfig));
+        }
         
         const loadPromises = Object.entries(assetConfig).map(([key, path]) => {
-            console.log(`Loading asset: ${key} from path: ${path}`);
+            if (this.debug) {
+                console.log(`Loading asset: ${key} from path: ${path}`);
+            }
             this.loadingStatus.set(key, 'loading');
             
             return new Promise((resolve, reject) => {
@@ -25,11 +32,13 @@ export class AssetLoader {
                 const timeoutId = setTimeout(() => {
                     this.loadingStatus.set(key, 'timeout');
                     reject(new Error(`Timeout loading asset: ${path}`));
-                }, 5000); // 5 second timeout
+                }, GameConstants.ASSET_LOAD_TIMEOUT);
                 
                 img.onload = () => {
                     clearTimeout(timeoutId);
-                    console.log(`Successfully loaded asset: ${key}`);
+                    if (this.debug) {
+                        console.log(`Successfully loaded asset: ${key}`);
+                    }
                     this.assets.set(key, img);
                     this.loadingStatus.set(key, 'loaded');
                     resolve();
@@ -59,11 +68,13 @@ export class AssetLoader {
 
         try {
             await Promise.all(loadPromises);
-            console.log('All assets loaded successfully:', 
-                Array.from(this.loadingStatus.entries())
-                    .map(([key, status]) => `${key}: ${status}`)
-                    .join(', ')
-            );
+            if (this.debug) {
+                console.log('All assets loaded successfully:', 
+                    Array.from(this.loadingStatus.entries())
+                        .map(([key, status]) => `${key}: ${status}`)
+                        .join(', ')
+                );
+            }
         } catch (error) {
             console.error('Failed to load assets:', error);
             console.error('Loading status:', 
@@ -82,9 +93,8 @@ export class AssetLoader {
      */
     get(key) {
         const asset = this.assets.get(key);
-        if (!asset) {
+        if (!asset && this.debug) {
             console.warn(`Asset not found: ${key}`);
-            return null;
         }
         return asset;
     }

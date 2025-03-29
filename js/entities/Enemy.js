@@ -1,4 +1,5 @@
 import { Entity } from './Entity.js';
+import { GameConstants } from '../config/GameConstants.js';
 
 export class Enemy extends Entity {
     constructor(data) {
@@ -55,37 +56,18 @@ export class Enemy extends Entity {
         this.rotation = Math.atan2(dy, dx);
 
         if (distance > 0) {
-            const moveX = (dx / distance) * this.speed * deltaTime * 60;
-            const moveY = (dy / distance) * this.speed * deltaTime * 60;
+            const moveX = (dx / distance) * this.speed * deltaTime * GameConstants.MOVEMENT_SPEED_MULTIPLIER;
+            const moveY = (dy / distance) * this.speed * deltaTime * GameConstants.MOVEMENT_SPEED_MULTIPLIER;
             this.x += moveX;
             this.y += moveY;
         }
 
         // Check if reached current target point
-        if (distance < 5) {
+        if (distance < GameConstants.COLLISION_THRESHOLD) {
             this.currentPathIndex++;
             if (this.currentPathIndex < this.path.length) {
                 this.targetPoint = this.path[this.currentPathIndex];
             }
         }
-    }
-
-    draw(ctx) {
-        // Draw enemy
-        ctx.fillStyle = 'red';
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-
-        // Draw path (for debugging)
-        ctx.strokeStyle = 'rgba(255, 0, 0, 0.2)';
-        ctx.beginPath();
-        ctx.moveTo(this.path[0].x, this.path[0].y);
-        for (let i = 1; i < this.path.length; i++) {
-            ctx.lineTo(this.path[i].x, this.path[i].y);
-        }
-        ctx.stroke();
-    }
-
-    isAlive() {
-        return this.health > 0;
     }
 } 

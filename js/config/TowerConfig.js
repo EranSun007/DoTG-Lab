@@ -10,7 +10,8 @@ export const TowerConfig = {
         projectileSpeed: 200,
         projectileSize: 5,
         color: '#FF0000',
-        sprite: 'tower_ranged.png'
+        sprite: 'tower_ranged.png',
+        projectileType: 'ARROW'
     },
     
     // Area of effect tower
@@ -26,6 +27,7 @@ export const TowerConfig = {
         projectileSpeed: 150,
         projectileSize: 8,
         color: '#00FF00',
-        sprite: 'tower_aoe.png'
+        sprite: 'tower_aoe.png',
+        projectileType: 'FIREBALL'
     }
 }; 

@@ -1,4 +1,5 @@
 import { Entity } from './Entity.js';
+import { GameConstants } from '../config/GameConstants.js';
 
 export class Projectile extends Entity {
     constructor(data) {
@@ -47,7 +48,7 @@ export class Projectile extends Entity {
         }
 
         // Check for collision with target
-        if (distance < 5) { // Small threshold for collision
+        if (distance < GameConstants.COLLISION_THRESHOLD) {
             if (this.target.takeDamage) {
                 this.target.takeDamage(this.damage);
                 this.hasHitTarget = true;

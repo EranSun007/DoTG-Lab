@@ -83,13 +83,4 @@ export class Hero extends Entity {
 
         this.projectiles.push(projectile);
     }
-
-    draw(ctx) {
-        // Draw hero base
-        ctx.fillStyle = 'green';
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-
-        // Draw projectiles
-        this.projectiles.forEach(projectile => projectile.draw(ctx));
-    }
 } 

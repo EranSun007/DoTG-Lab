@@ -1,19 +1,22 @@
 import { Entity } from './Entity.js';
-import { Projectile } from './Projectile.js';
+import { ProjectileConfig } from '../config/ProjectileConfig.js';
+import { GameConstants } from '../config/GameConstants.js';
+import { Debug } from '../utils/Debug.js';
 
 export class Tower extends Entity {
     constructor(data) {
         super(data);
-        this.range = data.range || 150;
+        this.range = data.range || 200;
         this.damage = data.damage || 20;
         this.attackSpeed = data.attackSpeed || 1;
         this.projectileSpeed = data.projectileSpeed || 300;
-        this.projectileSize = data.projectileSize || 8;
-        this.color = data.color || '#ff0000';
+        this.projectileSize = data.projectileSize || 10;
+        this.color = data.color || '#00ff00';
         this.splashRadius = data.splashRadius || 0;
         this.splashDamage = data.splashDamage || 0;
         this.lastAttackTime = 0;
-        this.projectiles = [];
+        this.cooldown = 0;
+        this.projectileType = data.projectileType || 'ARROW';
     }
 
     getAssetType() {
@@ -27,50 +30,18 @@ export class Tower extends Entity {
             y: this.y,
             width: this.width,
             height: this.height,
+            rotation: this.rotation || 0,
             range: this.range
         };
-    }
-
-    update(deltaTime, gameState) {
-        const currentTime = performance.now() / 1000;
-        
-        // Check if enough time has passed since last attack
-        if (currentTime - this.lastAttackTime >= 1 / this.attackSpeed) {
-            // Find nearest enemy in range
-            const nearestEnemy = this.findNearestEnemy(gameState.enemies);
-            
-            if (nearestEnemy) {
-                // Create and fire projectile
-                this.projectiles.push(new Projectile({
-                    x: this.x + this.width / 2,
-                    y: this.y + this.height / 2,
-                    width: this.projectileSize,
-                    height: this.projectileSize,
-                    speed: this.projectileSpeed,
-                    damage: this.damage,
-                    splashRadius: this.splashRadius,
-                    splashDamage: this.splashDamage,
-                    target: nearestEnemy
-                }));
-                
-                this.lastAttackTime = currentTime;
-            }
-        }
-        
-        // Update projectiles
-        this.projectiles = this.projectiles.filter(projectile => {
-            projectile.update(deltaTime, gameState);
-            return !projectile.hasHitTarget;
-        });
     }
 
     findNearestEnemy(enemies) {
         let nearest = null;
         let minDistance = this.range;
-        
+
         enemies.forEach(enemy => {
-            const dx = enemy.x - this.x;
-            const dy = enemy.y - this.y;
+            const dx = enemy.x - (this.x + this.width / 2);
+            const dy = enemy.y - (this.y + this.height / 2);
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             if (distance < minDistance) {
@@ -78,26 +49,67 @@ export class Tower extends Entity {
                 nearest = enemy;
             }
         });
-        
+
         return nearest;
     }
 
-    isAlive() {
-        return true; // Towers don't have health yet
+    attack(target, projectileManager) {
+        if (!projectileManager) {
+            Debug.error('Cannot create projectile: ProjectileManager not available');
+            return;
+        }
+
+        // Create and fire projectile using ProjectileManager
+        projectileManager.createProjectile(
+            this.projectileType,
+            this.x + this.width / 2,
+            this.y + this.height / 2,
+            target,
+            this
+        );
     }
 
-    draw(ctx) {
-        // Draw tower base
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+    update(deltaTime, gameState) {
+        // Update cooldown
+        if (this.cooldown > 0) {
+            this.cooldown -= deltaTime;
+        }
 
-        // Draw range indicator
-        ctx.strokeStyle = `${this.color}40`;
-        ctx.beginPath();
-        ctx.arc(this.x + this.width/2, this.y + this.height/2, this.range, 0, Math.PI * 2);
-        ctx.stroke();
+        // Find and attack nearest enemy in range
+        if (this.cooldown <= 0) {
+            const nearestEnemy = this.findNearestEnemy(gameState.enemies);
+            if (nearestEnemy) {
+                this.attack(nearestEnemy, gameState.projectileManager);
+                this.cooldown = 1 / this.attackSpeed;
+            }
+        }
+    }
 
-        // Draw projectiles
-        this.projectiles.forEach(projectile => projectile.draw(ctx));
+    getState() {
+        return {
+            ...super.getState(),
+            range: this.range,
+            damage: this.damage,
+            attackSpeed: this.attackSpeed,
+            projectileSpeed: this.projectileSpeed,
+            projectileSize: this.projectileSize,
+            color: this.color,
+            splashRadius: this.splashRadius,
+            splashDamage: this.splashDamage,
+            projectileType: this.projectileType
+        };
+    }
+
+    syncState(state) {
+        super.syncState(state);
+        this.range = state.range;
+        this.damage = state.damage;
+        this.attackSpeed = state.attackSpeed;
+        this.projectileSpeed = state.projectileSpeed;
+        this.projectileSize = state.projectileSize;
+        this.color = state.color;
+        this.splashRadius = state.splashRadius;
+        this.splashDamage = state.splashDamage;
+        this.projectileType = state.projectileType;
     }
 } 

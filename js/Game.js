@@ -1,5 +1,6 @@
 import { EnemyManager } from './managers/EnemyManager.js';
 import { TowerManager } from './managers/TowerManager.js';
+import { ProjectileManager } from './managers/ProjectileManager.js';
 import { Hero } from './entities/Hero.js';
 import { TowerConfig } from './config/TowerConfig.js';
 import { EnemyConfig } from './config/EnemyConfig.js';
@@ -11,6 +12,8 @@ import { AssetLoader } from './utils/AssetLoader.js';
 import { AssetConfig } from './config/AssetConfig.js';
 import { UIManager } from './managers/UIManager.js';
 import { DebugMenu } from './debug/DebugMenu.js';
+import { Debug } from './utils/Debug.js';
+import { UILabels } from './config/UILabels.js';
 
 export class Game {
     constructor(canvas, uiManager) {
@@ -21,6 +24,7 @@ export class Game {
         this.inputManager = new InputManager(canvas);
         this.enemyManager = new EnemyManager();
         this.towerManager = new TowerManager();
+        this.projectileManager = new ProjectileManager();
         this.uiManager = uiManager;
         this.debugMenu = new DebugMenu(this);
         
@@ -61,15 +65,15 @@ export class Game {
 
     async initialize() {
         try {
-            console.log('Game initialization started');
+            Debug.log('Game initialization started');
             
             // Load all game assets
-            console.log('Loading assets...');
+            Debug.log('Loading assets...');
             await this.assetLoader.load(AssetConfig);
-            console.log('Assets loaded successfully');
+            Debug.log('Assets loaded successfully');
             
             // Initialize game state
-            console.log('Initializing game state...');
+            Debug.log('Initializing game state...');
             this.init();
             
             // Hide loading overlay with a slight delay to ensure smooth transition
@@ -86,20 +90,20 @@ export class Game {
             
             // Update loading state and start game
             this.isLoading = false;
-            console.log('Starting game loop...');
+            Debug.log(UILabels.DEBUG.GAME_START);
             this.start();
             
-            console.log('Game initialization completed');
+            Debug.log('Game initialization completed');
         } catch (error) {
-            console.error('Failed to initialize game:', error);
+            Debug.error('Failed to initialize game:', error);
             // Show error in loading overlay instead of hiding it
             const loadingOverlay = document.getElementById('loading-overlay');
             if (loadingOverlay) {
                 const content = loadingOverlay.querySelector('.loading-content');
                 if (content) {
-                    content.innerHTML = 'Failed to load game assets.<br>Please refresh the page.';
+                    content.innerHTML = UILabels.ERRORS.GAME_START_FAIL;
                 } else {
-                    loadingOverlay.textContent = 'Failed to load game assets. Please refresh the page.';
+                    loadingOverlay.textContent = UILabels.ERRORS.GAME_START_FAIL;
                 }
                 loadingOverlay.style.backgroundColor = 'rgba(102, 0, 0, 0.95)';
             }
@@ -154,19 +158,19 @@ export class Game {
      */
     placeTowerAt(x, y) {
         if (!this.selectedTowerType) {
-            console.log('Cannot place tower: No tower selected');
+            Debug.log('Cannot place tower: No tower selected');
             return;
         }
 
         const towerConfig = TowerConfig[this.selectedTowerType];
         if (!towerConfig) {
-            console.log('Cannot place tower: Invalid tower type');
+            Debug.log('Cannot place tower: Invalid tower type');
             return;
         }
 
         // Check if player can afford the tower
         if (this.gold < towerConfig.cost) {
-            console.log('Cannot place tower: Not enough gold');
+            Debug.log('Cannot place tower: Not enough gold');
             return;
         }
 
@@ -174,7 +178,7 @@ export class Game {
         const pathY = this.canvas.height / 2;
         const pathHeight = 64; // Standard path width
         if (Math.abs(y - pathY) < pathHeight / 2) {
-            console.log('Cannot place tower: Invalid location (on path)');
+            Debug.log('Cannot place tower: Invalid location (on path)');
             return;
         }
 
@@ -192,7 +196,8 @@ export class Game {
             projectileSize: towerConfig.projectileSize,
             color: towerConfig.color,
             splashRadius: towerConfig.splashRadius,
-            splashDamage: towerConfig.splashDamage
+            splashDamage: towerConfig.splashDamage,
+            projectileType: towerConfig.projectileType
         };
 
         // Create the tower
@@ -200,7 +205,7 @@ export class Game {
 
         // Verify tower was created
         if (!tower) {
-            console.error('Failed to create tower!');
+            Debug.error('Failed to create tower!');
             return;
         }
 
@@ -286,6 +291,7 @@ export class Game {
             hero: this.hero?.getState(),
             enemies: this.enemyManager.getAll().map(enemy => enemy.getState()),
             towers: this.towerManager.getAll().map(tower => tower.getState()),
+            projectiles: this.projectileManager.getState(),
             selectedTowerType: this.selectedTowerType
         };
     }
@@ -315,11 +321,10 @@ export class Game {
             }
         }
 
-        // Sync enemies
+        // Sync managers
         this.enemyManager.syncState(state.enemies);
-
-        // Sync towers
         this.towerManager.syncState(state.towers);
+        this.projectileManager.syncState(state.projectiles);
 
         // Update UI
         this.uiManager.updateGold(this.gold);
@@ -340,6 +345,7 @@ export class Game {
         this.entities.clear();
         this.enemyManager.clear();
         this.towerManager.clear();
+        this.projectileManager.clear();
         this.hero = null;
 
         // Load new state
@@ -360,7 +366,7 @@ export class Game {
         if (this.debug) {
             if (this.inputManager.isKeyJustPressed('s') && this.inputManager.isKeyDown('alt')) {
                 const state = this.getState();
-                console.log('Current Game State:', state);
+                Debug.log('Current Game State:', state);
             }
         }
 
@@ -374,7 +380,8 @@ export class Game {
             gold: this.gold,
             lives: this.lives,
             currentWave: this.currentWave,
-            canStartWave: this.canStartWave
+            canStartWave: this.canStartWave,
+            projectileManager: this.projectileManager
         };
 
         // Update all entities
@@ -385,6 +392,7 @@ export class Game {
         // Update managers
         this.enemyManager.updateAll(adjustedDeltaTime, gameState);
         this.towerManager.updateAll(adjustedDeltaTime, gameState);
+        this.projectileManager.updateAll(adjustedDeltaTime, gameState);
         this.inputManager.update();
 
         // Update UI elements
@@ -395,7 +403,7 @@ export class Game {
 
         // Handle tower placement with left mouse button
         if (this.inputManager.isMousePressed && this.selectedTowerType) {
-            console.log('Attempting tower placement:', {
+            Debug.log('Attempting tower placement:', {
                 selectedType: this.selectedTowerType,
                 mousePos: this.inputManager.getMousePosition(),
                 gold: this.gold
@@ -435,7 +443,7 @@ export class Game {
             this.uiManager.updateLives(this.lives);
             
             if (this.lives <= 0) {
-                console.log('Game Over!');
+                Debug.log('Game Over!');
             }
         }
 
@@ -513,10 +521,8 @@ export class Game {
         this.renderer.drawAll(this.enemyManager.getAll());
         this.renderer.drawAll(this.towerManager.getAll());
         
-        // Draw projectiles from all towers
-        this.towerManager.getAll().forEach(tower => {
-            this.renderer.drawAll(tower.projectiles);
-        });
+        // Draw projectiles
+        this.projectileManager.drawAll(this.ctx);
         
         // Draw hero if exists
         if (this.hero) {
@@ -547,16 +553,16 @@ export class Game {
      */
     start() {
         if (this.isLoading) {
-            console.warn('Cannot start game while assets are still loading');
+            Debug.warn('Cannot start game while assets are still loading');
             return;
         }
         
         if (this.isRunning) {
-            console.warn('Game is already running');
+            Debug.warn('Game is already running');
             return;
         }
         
-        console.log('Game loop starting...');
+        Debug.log(UILabels.DEBUG.GAME_START);
         this.isRunning = true;
         this.lastTime = performance.now();
         requestAnimationFrame(() => this.loop());
@@ -589,5 +595,78 @@ export class Game {
         if (this.debug) {
             console.log(`[DEBUG] ${message}`, ...args);
         }
+    }
+
+    /**
+     * Clean up and destroy the game instance
+     */
+    destroy() {
+        Debug.log('Destroying game instance...');
+
+        // Stop the game loop
+        this.isRunning = false;
+        this.isLoading = false;
+        this.paused = true;
+
+        // Destroy all managers
+        this.enemyManager.destroy();
+        this.towerManager.destroy();
+        this.projectileManager.destroy();
+        this.inputManager.destroy();
+        this.uiManager.destroy();
+
+        // Clear all entities
+        this.entities.clear();
+        this.entities = null;
+
+        // Clear hero reference
+        this.hero = null;
+
+        // Clear game state
+        this.lastTime = 0;
+        this.deltaTime = 0;
+        this.gold = 0;
+        this.lives = 0;
+        this.currentWave = 1;
+        this.canStartWave = false;
+        this.selectedTowerType = null;
+        this.waveInProgress = false;
+        this.enemyPositions = null;
+
+        // Clear canvas
+        if (this.ctx && this.canvas) {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+
+        // Clear references
+        this.canvas = null;
+        this.ctx = null;
+        this.assetLoader = null;
+        this.renderer = null;
+        this.enemyManager = null;
+        this.towerManager = null;
+        this.projectileManager = null;
+        this.inputManager = null;
+        this.uiManager = null;
+        this.debugMenu = null;
+
+        Debug.log('Game instance destroyed');
+    }
+
+    /**
+     * Restart the game
+     */
+    restart() {
+        Debug.log('Restarting game...');
+        
+        // Destroy current game state
+        this.destroy();
+        
+        // Reinitialize game
+        this.constructor(this.canvas, this.uiManager);
+        this.initialize().catch(error => {
+            Debug.error('Failed to restart game:', error);
+            this.uiManager.showError(UILabels.ERRORS.GAME_RESTART_FAIL);
+        });
     }
 } 

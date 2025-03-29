@@ -1,4 +1,5 @@
 import { Tower } from '../entities/Tower.js';
+import { Debug } from '../utils/Debug.js';
 
 /**
  * Manages all tower entities in the game
@@ -79,13 +80,10 @@ export class TowerManager {
      * @param {Array} states - Array of tower states
      */
     syncState(states) {
-        // Clear existing towers
-        this.towers = [];
-
-        // Create new towers from states
+        this.clear();
         states.forEach(state => {
             const tower = new Tower(state);
-            this.towers.push(tower);
+            this.towers.set(tower.id, tower);
         });
     }
 
@@ -93,6 +91,16 @@ export class TowerManager {
      * Clear all towers
      */
     clear() {
-        this.towers = [];
+        this.towers.clear();
+        Debug.log('TowerManager cleared');
+    }
+
+    /**
+     * Clean up and destroy the manager
+     */
+    destroy() {
+        this.clear();
+        this.towers = null;
+        Debug.log('TowerManager destroyed');
     }
 } 

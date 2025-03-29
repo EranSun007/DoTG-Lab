@@ -1,3 +1,6 @@
+import { Debug } from '../utils/Debug.js';
+import { UILabels } from '../config/UILabels.js';
+
 export class Renderer {
     constructor(ctx, assetLoader) {
         this.ctx = ctx;
@@ -22,6 +25,7 @@ export class Renderer {
             // Fallback: Draw a solid color background
             this.ctx.fillStyle = '#2a2a2a';
             this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+            Debug.warn('Background tile asset not found, using fallback color');
         }
 
         // Draw path
@@ -62,16 +66,7 @@ export class Renderer {
                 }
             });
         } else {
-            // Fallback: Draw a simple path with rectangles
-            this.ctx.fillStyle = '#4a4a4a';
-            const pathWidth = 64;
-            const pathY = (this.ctx.canvas.height - pathWidth) / 2; // Center vertically
-            const pathSegments = [
-                { x: 0, y: pathY, width: this.ctx.canvas.width, height: pathWidth }
-            ];
-            pathSegments.forEach(segment => {
-                this.ctx.fillRect(segment.x, segment.y, segment.width, segment.height);
-            });
+            Debug.warn('Path asset not found');
         }
     }
 
@@ -85,6 +80,7 @@ export class Renderer {
      * @param {Entity} entity - The entity to draw
      */
     drawEntity(entity) {
+        // First draw the sprite using getDrawData
         const drawData = entity.getDrawData();
         const assetKey = drawData.type;
 
@@ -95,12 +91,22 @@ export class Renderer {
             } else {
                 // Fallback to debug shape
                 this.drawDebugShape(drawData);
-                console.warn(`Asset not found: ${assetKey}, using debug shape`);
+                Debug.warn(`${UILabels.DEBUG.ASSET_LOAD_FAIL}${assetKey}, using debug shape`);
             }
         } catch (error) {
             // Fallback to debug shape on any error
             this.drawDebugShape(drawData);
-            console.warn(`Error drawing entity: ${error.message}, using debug shape`);
+            Debug.error(`Error drawing entity: ${error.message}, using debug shape`);
+        }
+
+        // Draw projectiles if the entity has any
+        if (entity.projectiles) {
+            entity.projectiles.forEach(projectile => this.drawEntity(projectile));
+        }
+
+        // Then draw any additional visual elements (like range indicators)
+        if (entity.draw) {
+            entity.draw(this.ctx);
         }
     }
 
