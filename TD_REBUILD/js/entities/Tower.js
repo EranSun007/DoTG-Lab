@@ -5,13 +5,18 @@ import { Enemy } from './Enemy.js';
 export class Tower extends Entity {
     constructor(data) {
         super(data);
-        this.range = data.range || 100;
-        this.damage = data.damage || 10;
-        this.attackSpeed = data.attackSpeed || 1;
+        this.range = data.range;
+        this.damage = data.damage;
+        this.attackSpeed = data.attackSpeed;
         this.lastAttackTime = 0;
         this.target = null;
         this.rotation = 0;
         this.projectiles = [];
+        this.color = data.color;
+        this.splashRadius = data.splashRadius;
+        this.splashDamage = data.splashDamage;
+        this.projectileSpeed = data.projectileSpeed;
+        this.projectileSize = data.projectileSize;
     }
 
     /**
@@ -62,11 +67,14 @@ export class Tower extends Entity {
         const projectile = new Projectile({
             x: this.x + this.width/2,
             y: this.y + this.height/2,
-            width: 8,
-            height: 8,
-            speed: 5,
+            width: this.projectileSize,
+            height: this.projectileSize,
+            speed: this.projectileSpeed,
             damage: this.damage,
-            target: this.target
+            target: this.target,
+            color: this.color,
+            splashRadius: this.splashRadius,
+            splashDamage: this.splashDamage
         });
 
         this.projectiles.push(projectile);
@@ -74,19 +82,19 @@ export class Tower extends Entity {
 
     draw(ctx) {
         // Draw tower base
-        ctx.fillStyle = 'blue';
+        ctx.fillStyle = this.color;
         ctx.fillRect(this.x, this.y, this.width, this.height);
 
-        // Draw tower barrel
+        // Draw direction indicator
         ctx.save();
         ctx.translate(this.x + this.width/2, this.y + this.height/2);
         ctx.rotate(this.rotation);
-        ctx.fillStyle = 'darkblue';
+        ctx.fillStyle = 'white';
         ctx.fillRect(0, -4, this.width/2, 8);
         ctx.restore();
 
         // Draw range indicator
-        ctx.strokeStyle = 'rgba(0, 0, 255, 0.2)';
+        ctx.strokeStyle = `${this.color}40`;
         ctx.beginPath();
         ctx.arc(this.x + this.width/2, this.y + this.height/2, this.range, 0, Math.PI * 2);
         ctx.stroke();

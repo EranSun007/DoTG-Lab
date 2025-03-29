@@ -5,15 +5,37 @@ export class InputManager {
         this.mouseButtons = new Set();
         this.clickedButtons = new Set();
         this.keyStates = new Map();
-        this.touchState = null;  // Future touch support
-        this.gamepadState = null;  // Future gamepad support
     }
 
     init(canvas) {
-        // All event listeners centralized here
-        window.addEventListener('keydown', (e) => this.keys.add(e.key));
-        window.addEventListener('keyup', (e) => this.keys.delete(e.key));
-        // ... mouse listeners
+        // Keyboard input
+        window.addEventListener('keydown', (e) => {
+            this.keys.add(e.key);
+            this.keyStates.set(e.key, performance.now());
+        });
+
+        window.addEventListener('keyup', (e) => {
+            this.keys.delete(e.key);
+            this.keyStates.delete(e.key);
+        });
+
+        // Mouse input
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            this.mousePosition = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            this.mouseButtons.add(e.button);
+            this.clickedButtons.add(e.button);
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            this.mouseButtons.delete(e.button);
+        });
     }
 
     isKeyDown(key) {
@@ -40,13 +62,6 @@ export class InputManager {
     update() {
         // Clear single-frame clicks
         this.clickedButtons.clear();
-    }
-
-    // Example of extensible interface
-    isActionPressed(action) {
-        // Could check multiple input sources
-        return this.isKeyDown(this.keyBindings[action]) ||
-               this.isGamepadButtonPressed(this.gamepadBindings[action]);
     }
 
     getDebugInfo() {

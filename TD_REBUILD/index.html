@@ -3,23 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
     <title>Tower Defense Game</title>
     <style>
         body {
             margin: 0;
             padding: 0;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+        }
+        #game-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
         }
         canvas {
             border: 1px solid #333;
         }
+        #ui-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            gap: 20px;
+            font-size: 18px;
+        }
+        #tower-controls {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        button:hover {
+            background-color: #444;
+        }
+        button:disabled {
+            background-color: #222;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        button.selected {
+            background-color: #666;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+            border: 2px solid #44ff44;
+        }
+
+        /* Visual Feedback Effects */
+        @keyframes flash {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes damage-flash {
+            0% { color: #ffffff; }
+            50% { color: #ff4444; }
+            100% { color: #ffffff; }
+        }
+
+        @keyframes gold-increase {
+            0% { color: #ffffff; }
+            50% { color: #44ff44; }
+            100% { color: #ffffff; }
+        }
+
+        @keyframes gold-decrease {
+            0% { color: #ffffff; }
+            50% { color: #ff4444; }
+            100% { color: #ffffff; }
+        }
+
+        .clicked {
+            animation: flash 0.2s ease;
+        }
+
+        .selected {
+            /* animation removed */
+        }
+
+        .damage-flash {
+            animation: damage-flash 0.5s ease;
+        }
+
+        .gold-increase {
+            animation: gold-increase 0.5s ease;
+        }
+
+        .gold-decrease {
+            animation: gold-decrease 0.5s ease;
+        }
+
+        .wave-increase {
+            animation: flash 0.5s ease;
+        }
+
+        /* Debug Mode Styles */
+        .debug-mode #ui-overlay {
+            border: 1px solid #ff4444;
+            padding: 5px;
+            background-color: rgba(255, 68, 68, 0.1);
+        }
+
+        .debug-mode button {
+            border: 1px solid #44ff44;
+        }
+
+        .debug-mode button.selected {
+            border-color: #ffff44;
+        }
     </style>
 </head>
 <body>
+    <div id="game-container">
+        <div id="ui-overlay">
+            <span id="gold-display">Gold: 100</span>
+            <span id="lives-display">Lives: 10</span>
+            <span id="wave-number-display">Wave: 1</span>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        <div id="tower-controls">
+            <button id="start-wave-button">Start Wave</button>
+            <button id="select-tower-ranged">Ranged Tower</button>
+            <button id="select-tower-aoe">AOE Tower</button>
+        </div>
+    </div>
     <script type="module" src="js/main.js"></script>
 </body>
 </html> 

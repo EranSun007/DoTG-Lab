@@ -9,6 +9,7 @@ export class Projectile extends Entity {
         this.color = data.color || 'yellow';
         this.maxDistance = 1000; // Maximum distance before despawning
         this.distanceTraveled = 0;
+        this.hasHit = false; // Track if projectile has hit something
     }
 
     /**
@@ -16,8 +17,8 @@ export class Projectile extends Entity {
      * @param {Object} gameState - Current game state
      */
     update(deltaTime, gameState) {
-        if (!this.target) return false;
-        if (!this.target.isAlive()) return false;
+        if (!this.target || !this.target.isAlive()) return false;
+        if (this.hasHit) return false;
 
         // Calculate direction to target
         const dx = this.target.x + this.target.width/2 - this.x;
@@ -34,6 +35,7 @@ export class Projectile extends Entity {
         } else {
             // Hit target
             this.target.health -= this.damage;
+            this.hasHit = true; // Mark as hit
             console.log(`Projectile hit target for ${this.damage} damage! Target health: ${this.target.health}`);
             return false; // Signal to remove projectile
         }
@@ -44,10 +46,12 @@ export class Projectile extends Entity {
      * @returns {boolean} Whether the projectile is still alive
      */
     isAlive() {
-        return this.distanceTraveled < this.maxDistance;
+        return !this.hasHit && this.distanceTraveled < this.maxDistance;
     }
 
     draw(ctx) {
+        if (this.hasHit) return; // Don't draw if already hit
+
         // Draw projectile trail
         ctx.beginPath();
         ctx.strokeStyle = 'rgba(255, 255, 0, 0.3)';
