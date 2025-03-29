@@ -41,17 +41,19 @@ export class Hero extends Entity {
         let target = null;
         let closestDistance = this.range;
 
-        // Use enemies directly from gameState
-        gameState.enemies.forEach(enemy => {
-            const dx = enemy.x - (this.x + this.width/2);
-            const dy = enemy.y - (this.y + this.height/2);
-            const distance = Math.sqrt(dx * dx + dy * dy);
+        // Ensure enemies array exists and is an array
+        if (Array.isArray(gameState.enemies)) {
+            gameState.enemies.forEach(enemy => {
+                const dx = enemy.x - (this.x + this.width/2);
+                const dy = enemy.y - (this.y + this.height/2);
+                const distance = Math.sqrt(dx * dx + dy * dy);
 
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                target = enemy;
-            }
-        });
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    target = enemy;
+                }
+            });
+        }
 
         // Attack if target found and cooldown is ready
         if (target && currentTime - this.lastAttackTime >= 1 / this.attackSpeed) {

@@ -80,83 +80,40 @@ export class Renderer {
         entities.forEach(entity => this.drawEntity(entity));
     }
 
+    /**
+     * Draw an entity on the canvas
+     * @param {Entity} entity - The entity to draw
+     */
     drawEntity(entity) {
         const drawData = entity.getDrawData();
-        if (!drawData) return;
+        const assetKey = drawData.type;
 
-        const { type, x, y, width, height, rotation = 0, range, color, health, maxHealth } = drawData;
-        const asset = this.assetLoader.get(type);
-        
-        // Draw range circle for towers and hero
-        if (range) {
-            this.ctx.beginPath();
-            // Use different colors for hero and tower ranges
-            if (type === 'HERO') {
-                this.ctx.strokeStyle = 'rgba(0, 255, 0, 0.2)';
-                this.ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
+        try {
+            const sprite = this.assetLoader.get(assetKey);
+            if (sprite) {
+                this.drawSprite(sprite, drawData);
             } else {
-                this.ctx.strokeStyle = 'rgba(0, 150, 255, 0.2)';
-                this.ctx.fillStyle = 'rgba(0, 150, 255, 0.1)';
+                // Fallback to debug shape
+                this.drawDebugShape(drawData);
+                console.warn(`Asset not found: ${assetKey}, using debug shape`);
             }
-            this.ctx.arc(x + width/2, y + height/2, range, 0, Math.PI * 2);
-            this.ctx.fill();
-            this.ctx.stroke();
+        } catch (error) {
+            // Fallback to debug shape on any error
+            this.drawDebugShape(drawData);
+            console.warn(`Error drawing entity: ${error.message}, using debug shape`);
         }
-        
-        if (!asset) {
-            // Fallback to shape drawing if asset not found
-            this.drawShape(drawData);
-            return;
-        }
+    }
 
-        // Special handling for projectiles to add drop shadow
-        if (type === 'PROJECTILE_ARROW') {
-            this.ctx.save();
-            // Draw shadow
-            this.ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-            this.ctx.shadowBlur = 5;
-            this.ctx.shadowOffsetX = 2;
-            this.ctx.shadowOffsetY = 2;
-            
-            this.ctx.translate(x + width/2, y + height/2);
-            this.ctx.rotate(rotation);
-            this.ctx.drawImage(asset, -width/2, -height/2, width, height);
-            
-            // Reset shadow
-            this.ctx.shadowColor = 'transparent';
-            this.ctx.shadowBlur = 0;
-            this.ctx.shadowOffsetX = 0;
-            this.ctx.shadowOffsetY = 0;
-            this.ctx.restore();
-            return;
-        }
-
-        // Draw health bar for enemies
-        if (type === 'ENEMY_SCORPION' && health !== undefined && maxHealth !== undefined) {
-            // Draw health bar background
-            const barWidth = width;
-            const barHeight = 4;
-            const barY = y - 8; // Position above enemy
-            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-            this.ctx.fillRect(x, barY, barWidth, barHeight);
-
-            // Draw health bar
-            const healthWidth = (health / maxHealth) * barWidth;
-            this.ctx.fillStyle = health > maxHealth * 0.5 ? 'green' : 
-                               health > maxHealth * 0.25 ? 'yellow' : 'red';
-            this.ctx.fillRect(x, barY, healthWidth, barHeight);
-
-            // Draw health bar border
-            this.ctx.strokeStyle = 'white';
-            this.ctx.lineWidth = 1;
-            this.ctx.strokeRect(x, barY, barWidth, barHeight);
-        }
-
-        // Normal drawing for other entities
+    /**
+     * Draw a debug shape for an entity
+     * @param {Object} drawData - The entity's draw data
+     */
+    drawDebugShape(drawData) {
         this.ctx.save();
-        this.ctx.translate(x + width/2, y + height/2);
-        this.ctx.rotate(rotation);
-        this.ctx.drawImage(asset, -width/2, -height/2, width, height);
+        this.ctx.translate(drawData.x + drawData.width/2, drawData.y + drawData.height/2);
+        this.ctx.rotate(drawData.rotation);
+        this.ctx.fillStyle = '#ff0000';
+        this.ctx.fillRect(-drawData.width/2, -drawData.height/2, drawData.width, drawData.height);
         this.ctx.restore();
     }
 
@@ -192,10 +149,176 @@ export class Renderer {
         this.ctx.restore();
     }
 
-    drawDebugOverlay(fps, entityCount) {
+    drawDebugOverlay(gameState) {
+        if (!gameState.debug) return;
+
+        this.ctx.save();
         this.ctx.fillStyle = 'white';
         this.ctx.font = '12px Arial';
-        this.ctx.fillText(`FPS: ${fps}`, 10, 20);
-        this.ctx.fillText(`Entities: ${entityCount}`, 10, 35);
+        this.ctx.textAlign = 'left';
+
+        const debugState = gameState.debugMenu.getDebugState();
+        let y = 20;
+
+        // Draw FPS if enabled
+        if (debugState.showFPS) {
+            this.ctx.fillText(`FPS: ${Math.round(1000 / gameState.deltaTime)}`, 10, y);
+            y += 20;
+        }
+
+        // Draw entity counts if enabled
+        if (debugState.showEntityCount) {
+            this.ctx.fillText(`Enemies: ${gameState.enemies.length}`, 10, y);
+            y += 20;
+            this.ctx.fillText(`Towers: ${gameState.towers.length}`, 10, y);
+            y += 20;
+        }
+
+        // Draw mouse position
+        const mousePos = gameState.input.getMousePosition();
+        this.ctx.fillText(`Mouse: (${Math.round(mousePos.x)}, ${Math.round(mousePos.y)})`, 10, y);
+        y += 20;
+
+        // Draw game state
+        this.ctx.fillText(`Gold: ${gameState.gold}`, 10, y);
+        y += 20;
+        this.ctx.fillText(`Lives: ${gameState.lives}`, 10, y);
+        y += 20;
+        this.ctx.fillText(`Wave: ${gameState.currentWave}`, 10, y);
+        y += 20;
+
+        // Draw hero stats if hero exists
+        if (gameState.hero) {
+            this.ctx.fillText(`Hero HP: ${gameState.hero.health}/${gameState.hero.maxHealth}`, 10, y);
+            y += 20;
+            this.ctx.fillText(`Hero Range: ${gameState.hero.range}`, 10, y);
+            y += 20;
+            this.ctx.fillText(`Hero Damage: ${gameState.hero.damage}`, 10, y);
+            y += 20;
+        }
+
+        // Draw game speed
+        this.ctx.fillText(`Speed: ${gameState.speedMultiplier}x`, 10, y);
+        y += 20;
+
+        // Draw game state flags
+        this.ctx.fillText(`Paused: ${gameState.paused ? 'Yes' : 'No'}`, 10, y);
+        y += 20;
+        this.ctx.fillText(`Wave in Progress: ${gameState.waveInProgress ? 'Yes' : 'No'}`, 10, y);
+        y += 20;
+        this.ctx.fillText(`Can Start Wave: ${gameState.canStartWave ? 'Yes' : 'No'}`, 10, y);
+
+        this.ctx.restore();
+    }
+
+    drawGrid() {
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        this.ctx.lineWidth = 1;
+
+        const tileSize = 32; // Match GameConstants.TILE_SIZE
+        for (let x = 0; x < this.ctx.canvas.width; x += tileSize) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, 0);
+            this.ctx.lineTo(x, this.ctx.canvas.height);
+            this.ctx.stroke();
+        }
+
+        for (let y = 0; y < this.ctx.canvas.height; y += tileSize) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, y);
+            this.ctx.lineTo(this.ctx.canvas.width, y);
+            this.ctx.stroke();
+        }
+
+        this.ctx.restore();
+    }
+
+    drawColliders(entities) {
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+        this.ctx.lineWidth = 1;
+
+        entities.forEach(entity => {
+            const { x, y, width, height } = entity;
+            this.ctx.strokeRect(x, y, width, height);
+        });
+
+        this.ctx.restore();
+    }
+
+    /**
+     * Draw a sprite with proper transformations
+     * @param {Image} sprite - The sprite image to draw
+     * @param {Object} drawData - The entity's draw data
+     */
+    drawSprite(sprite, drawData) {
+        const { x, y, width, height, rotation = 0, range, health, maxHealth } = drawData;
+
+        // Draw range circle for towers and hero
+        if (range) {
+            this.ctx.beginPath();
+            // Use different colors for hero and tower ranges
+            if (drawData.type === 'HERO') {
+                this.ctx.strokeStyle = 'rgba(0, 255, 0, 0.2)';
+                this.ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
+            } else {
+                this.ctx.strokeStyle = 'rgba(0, 150, 255, 0.2)';
+                this.ctx.fillStyle = 'rgba(0, 150, 255, 0.1)';
+            }
+            this.ctx.arc(x + width/2, y + height/2, range, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.stroke();
+        }
+
+        // Special handling for projectiles to add drop shadow
+        if (drawData.type === 'PROJECTILE_ARROW') {
+            this.ctx.save();
+            // Draw shadow
+            this.ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            this.ctx.shadowBlur = 5;
+            this.ctx.shadowOffsetX = 2;
+            this.ctx.shadowOffsetY = 2;
+            
+            this.ctx.translate(x + width/2, y + height/2);
+            this.ctx.rotate(rotation);
+            this.ctx.drawImage(sprite, -width/2, -height/2, width, height);
+            
+            // Reset shadow
+            this.ctx.shadowColor = 'transparent';
+            this.ctx.shadowBlur = 0;
+            this.ctx.shadowOffsetX = 0;
+            this.ctx.shadowOffsetY = 0;
+            this.ctx.restore();
+            return;
+        }
+
+        // Draw health bar for enemies
+        if (drawData.type === 'ENEMY_SCORPION' && health !== undefined && maxHealth !== undefined) {
+            // Draw health bar background
+            const barWidth = width;
+            const barHeight = 4;
+            const barY = y - 8; // Position above enemy
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            this.ctx.fillRect(x, barY, barWidth, barHeight);
+
+            // Draw health bar
+            const healthWidth = (health / maxHealth) * barWidth;
+            this.ctx.fillStyle = health > maxHealth * 0.5 ? 'green' : 
+                               health > maxHealth * 0.25 ? 'yellow' : 'red';
+            this.ctx.fillRect(x, barY, healthWidth, barHeight);
+
+            // Draw health bar border
+            this.ctx.strokeStyle = 'white';
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(x, barY, barWidth, barHeight);
+        }
+
+        // Normal drawing for other entities
+        this.ctx.save();
+        this.ctx.translate(x + width/2, y + height/2);
+        this.ctx.rotate(rotation);
+        this.ctx.drawImage(sprite, -width/2, -height/2, width, height);
+        this.ctx.restore();
     }
 } 

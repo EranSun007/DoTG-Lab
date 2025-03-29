@@ -65,4 +65,31 @@ export class EnemyManager {
     getById(id) {
         return this.enemies.get(id) || null;
     }
+
+    /**
+     * Get the current state of all enemies
+     * @returns {Array} Array of enemy states
+     */
+    getState() {
+        return this.enemies.map(enemy => enemy.getState());
+    }
+
+    /**
+     * Sync enemy states from serialized data
+     * @param {Array} states - Array of enemy states
+     */
+    syncState(states) {
+        this.enemies = [];
+        states.forEach(state => {
+            const enemy = new Enemy(state);
+            this.enemies.push(enemy);
+        });
+    }
+
+    /**
+     * Clear all enemies
+     */
+    clear() {
+        this.enemies = [];
+    }
 } 

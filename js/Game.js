@@ -10,6 +10,7 @@ import { Renderer } from './renderer/Renderer.js';
 import { AssetLoader } from './utils/AssetLoader.js';
 import { AssetConfig } from './config/AssetConfig.js';
 import { UIManager } from './managers/UIManager.js';
+import { DebugMenu } from './debug/DebugMenu.js';
 
 export class Game {
     constructor(canvas, uiManager) {
@@ -21,6 +22,7 @@ export class Game {
         this.enemyManager = new EnemyManager();
         this.towerManager = new TowerManager();
         this.uiManager = uiManager;
+        this.debugMenu = new DebugMenu(this);
         
         // Initialize hero at center of canvas
         this.hero = new Hero({
@@ -146,11 +148,13 @@ export class Game {
     }
 
     /**
-     * Place a tower at the hero's position
+     * Place a tower at the specified coordinates
+     * @param {number} x - X coordinate
+     * @param {number} y - Y coordinate
      */
-    placeTower() {
-        if (!this.selectedTowerType || !this.hero) {
-            console.log('Cannot place tower: No tower selected or no hero');
+    placeTowerAt(x, y) {
+        if (!this.selectedTowerType) {
+            console.log('Cannot place tower: No tower selected');
             return;
         }
 
@@ -166,10 +170,18 @@ export class Game {
             return;
         }
 
-        // Create tower at hero's position with all config properties
+        // Check if placement is valid (not on path)
+        const pathY = this.canvas.height / 2;
+        const pathHeight = 64; // Standard path width
+        if (Math.abs(y - pathY) < pathHeight / 2) {
+            console.log('Cannot place tower: Invalid location (on path)');
+            return;
+        }
+
+        // Create tower at specified position with all config properties
         const towerData = {
-            x: this.hero.x,
-            y: this.hero.y,
+            x: x - 20, // Center the tower on the mouse position
+            y: y - 20,
             width: 40,
             height: 40,
             health: 100,
@@ -183,21 +195,14 @@ export class Game {
             splashDamage: towerConfig.splashDamage
         };
 
-        console.log('Creating tower with data:', towerData); // Debug log
-
         // Create the tower
         const tower = this.towerManager.addEntity(towerData);
-        console.log('Tower created:', tower); // Debug log
 
         // Verify tower was created
         if (!tower) {
             console.error('Failed to create tower!');
             return;
         }
-
-        // Verify tower is in the manager
-        const allTowers = this.towerManager.getAll();
-        console.log('All towers:', allTowers); // Debug log
 
         // Deduct gold
         this.gold -= towerConfig.cost;
@@ -206,7 +211,7 @@ export class Game {
         // Reset selection
         this.selectedTowerType = null;
         this.uiManager.setSelectedTower(null);
-        console.log('Tower placed successfully!'); // Debug log
+        console.log('Tower placed successfully!');
     }
 
     /**
@@ -265,20 +270,103 @@ export class Game {
     }
 
     /**
+     * Get the current game state for serialization
+     * @returns {Object} The complete game state
+     */
+    getState() {
+        return {
+            time: this.lastTime,
+            gold: this.gold,
+            lives: this.lives,
+            currentWave: this.currentWave,
+            canStartWave: this.canStartWave,
+            waveInProgress: this.waveInProgress,
+            paused: this.paused,
+            speedMultiplier: this.speedMultiplier,
+            hero: this.hero?.getState(),
+            enemies: this.enemyManager.getAll().map(enemy => enemy.getState()),
+            towers: this.towerManager.getAll().map(tower => tower.getState()),
+            selectedTowerType: this.selectedTowerType
+        };
+    }
+
+    /**
+     * Sync game state from serialized data
+     * @param {Object} state - The serialized game state
+     */
+    syncState(state) {
+        // Core game state
+        this.gold = state.gold;
+        this.lives = state.lives;
+        this.currentWave = state.currentWave;
+        this.canStartWave = state.canStartWave;
+        this.waveInProgress = state.waveInProgress;
+        this.paused = state.paused;
+        this.speedMultiplier = state.speedMultiplier;
+        this.selectedTowerType = state.selectedTowerType;
+
+        // Sync hero if exists
+        if (state.hero) {
+            if (!this.hero) {
+                this.hero = new Hero(state.hero);
+                this.entities.set(this.hero.id, this.hero);
+            } else {
+                this.hero.syncState(state.hero);
+            }
+        }
+
+        // Sync enemies
+        this.enemyManager.syncState(state.enemies);
+
+        // Sync towers
+        this.towerManager.syncState(state.towers);
+
+        // Update UI
+        this.uiManager.updateGold(this.gold);
+        this.uiManager.updateLives(this.lives);
+        this.uiManager.updateWaveNumber(this.currentWave);
+        this.uiManager.toggleStartWaveButton(this.canStartWave);
+        if (this.selectedTowerType) {
+            this.uiManager.setSelectedTower(this.selectedTowerType);
+        }
+    }
+
+    /**
+     * Load a complete game state (for testing/debugging)
+     * @param {Object} state - The complete game state to load
+     */
+    loadState(state) {
+        // Clear existing state
+        this.entities.clear();
+        this.enemyManager.clear();
+        this.towerManager.clear();
+        this.hero = null;
+
+        // Load new state
+        this.syncState(state);
+    }
+
+    /**
      * Update game state
      * @param {number} deltaTime - Time since last update in seconds
      */
     update(deltaTime) {
-        // Update input state
-        this.inputManager.update();
+        if (this.paused) return;
 
-        // Check for spacebar press to place tower
-        if (this.inputManager.isKeyDown(' ')) {
-            this.placeTower();
+        // Apply speed multiplier to delta time
+        const adjustedDeltaTime = deltaTime * this.speedMultiplier;
+
+        // Handle debug hotkeys
+        if (this.debug) {
+            if (this.inputManager.isKeyJustPressed('s') && this.inputManager.isKeyDown('alt')) {
+                const state = this.getState();
+                console.log('Current Game State:', state);
+            }
         }
 
+        // Create game state once
         const gameState = {
-            deltaTime,
+            deltaTime: adjustedDeltaTime,
             input: this.inputManager,
             enemies: this.enemyManager.getAll(),
             towers: this.towerManager.getAll(),
@@ -289,14 +377,37 @@ export class Game {
             canStartWave: this.canStartWave
         };
 
-        // Update all managers
-        this.enemyManager.updateAll(deltaTime, gameState);
-        this.towerManager.updateAll(deltaTime, gameState);
+        // Update all entities
+        this.entities.forEach(entity => {
+            entity.update(adjustedDeltaTime, gameState);
+        });
+
+        // Update managers
+        this.enemyManager.updateAll(adjustedDeltaTime, gameState);
+        this.towerManager.updateAll(adjustedDeltaTime, gameState);
+        this.inputManager.update();
+
+        // Update UI elements
+        this.uiManager.updateGold(this.gold);
+        this.uiManager.updateLives(this.lives);
+        this.uiManager.updateWaveNumber(this.currentWave);
+        this.uiManager.toggleStartWaveButton(this.canStartWave);
+
+        // Handle tower placement with left mouse button
+        if (this.inputManager.isMousePressed && this.selectedTowerType) {
+            console.log('Attempting tower placement:', {
+                selectedType: this.selectedTowerType,
+                mousePos: this.inputManager.getMousePosition(),
+                gold: this.gold
+            });
+            const mousePos = this.inputManager.getMousePosition();
+            this.placeTowerAt(mousePos.x, mousePos.y);
+        }
 
         // Update hero if exists
         if (this.hero) {
-            this.hero.update(deltaTime, gameState);
-            this.handleHeroMovement(deltaTime);
+            this.hero.update(adjustedDeltaTime, gameState);
+            this.handleHeroMovement(adjustedDeltaTime);
         }
 
         // Remove dead entities and handle rewards
@@ -340,12 +451,6 @@ export class Game {
                 this.uiManager.updateGold(this.gold);
             }
         }
-
-        // Update UI state
-        this.uiManager.updateGold(this.gold);
-        this.uiManager.updateLives(this.lives);
-        this.uiManager.updateWaveNumber(this.currentWave);
-        this.uiManager.toggleStartWaveButton(this.canStartWave);
     }
 
     /**
@@ -396,6 +501,14 @@ export class Game {
         // Draw background
         this.renderer.drawBackground();
         
+        // Draw grid if debug mode is enabled
+        if (this.debug) {
+            const debugState = this.debugMenu.getDebugState();
+            if (debugState.showGrid) {
+                this.renderer.drawGrid();
+            }
+        }
+        
         // Draw all game entities
         this.renderer.drawAll(this.enemyManager.getAll());
         this.renderer.drawAll(this.towerManager.getAll());
@@ -410,11 +523,22 @@ export class Game {
             this.renderer.drawEntity(this.hero);
         }
 
+        // Draw colliders if debug mode is enabled
+        if (this.debug) {
+            const debugState = this.debugMenu.getDebugState();
+            if (debugState.showColliders) {
+                const allEntities = [
+                    ...this.enemyManager.getAll(),
+                    ...this.towerManager.getAll(),
+                    this.hero
+                ].filter(Boolean);
+                this.renderer.drawColliders(allEntities);
+            }
+        }
+
         // Draw debug overlay if debug mode is enabled
         if (this.debug) {
-            const fps = Math.round(1 / this.deltaTime);
-            const entityCount = this.entities.size;
-            this.renderer.drawDebugOverlay(fps, entityCount);
+            this.renderer.drawDebugOverlay(this);
         }
     }
 
@@ -454,5 +578,16 @@ export class Game {
         }
 
         requestAnimationFrame(() => this.loop());
+    }
+
+    /**
+     * Log debug message if debug mode is enabled
+     * @param {string} message - Message to log
+     * @param {...any} args - Additional arguments to log
+     */
+    logDebug(message, ...args) {
+        if (this.debug) {
+            console.log(`[DEBUG] ${message}`, ...args);
+        }
     }
 } 

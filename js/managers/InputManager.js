@@ -2,8 +2,10 @@ export class InputManager {
     constructor(canvas) {
         this.canvas = canvas;
         this.keys = new Set();
+        this.previousKeys = new Set(); // Track previous key states
         this.mousePosition = { x: 0, y: 0 };
         this.isMousePressed = false;
+        this.lastMousePressed = false; // Track previous state for click detection
         
         // Bind event handlers
         this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -41,10 +43,12 @@ export class InputManager {
     }
 
     handleMouseDown(event) {
+        console.log('Mouse down event');
         this.isMousePressed = true;
     }
 
     handleMouseUp(event) {
+        console.log('Mouse up event');
         this.isMousePressed = false;
     }
 
@@ -56,12 +60,29 @@ export class InputManager {
         return isDown;
     }
 
+    isKeyJustPressed(key) {
+        const currentKey = key.toLowerCase();
+        const wasPressed = this.previousKeys.has(currentKey);
+        const isPressed = this.keys.has(currentKey);
+        return isPressed && !wasPressed;
+    }
+
     getMousePosition() {
         return this.mousePosition;
     }
 
+    isMousePressed() {
+        return this.isMousePressed;
+    }
+
     update() {
+        // Update previous keys state
+        this.previousKeys = new Set(this.keys);
+        
         // Update any input state that needs to be updated every frame
+        if (this.isMousePressed) {
+            console.log('Mouse is currently pressed at:', this.mousePosition);
+        }
     }
 
     cleanup() {

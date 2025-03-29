@@ -65,4 +65,34 @@ export class TowerManager {
     getById(id) {
         return this.towers.get(id) || null;
     }
+
+    /**
+     * Get the current state of all towers
+     * @returns {Array} Array of tower states
+     */
+    getState() {
+        return this.towers.map(tower => tower.getState());
+    }
+
+    /**
+     * Sync tower states from serialized data
+     * @param {Array} states - Array of tower states
+     */
+    syncState(states) {
+        // Clear existing towers
+        this.towers = [];
+
+        // Create new towers from states
+        states.forEach(state => {
+            const tower = new Tower(state);
+            this.towers.push(tower);
+        });
+    }
+
+    /**
+     * Clear all towers
+     */
+    clear() {
+        this.towers = [];
+    }
 } 

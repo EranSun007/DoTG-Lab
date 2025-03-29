@@ -65,12 +65,30 @@ export class Entity {
     getState() {
         return {
             id: this.id,
+            type: this.constructor.name,
             x: this.x,
             y: this.y,
             width: this.width,
             height: this.height,
-            rotation: this.rotation
+            health: this.health,
+            rotation: this.rotation,
+            maxHealth: this.maxHealth || this.health
         };
+    }
+
+    /**
+     * Sync entity state from serialized data
+     * @param {Object} state - The serialized entity state
+     */
+    syncState(state) {
+        this.id = state.id;
+        this.x = state.x;
+        this.y = state.y;
+        this.width = state.width;
+        this.height = state.height;
+        this.health = state.health;
+        this.rotation = state.rotation;
+        this.maxHealth = state.maxHealth || this.health;
     }
 
     getDrawData() {
