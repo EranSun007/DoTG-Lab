@@ -1,0 +1,90 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cursorco/awesome-cursorrules/main/schema.json",
+  "projectName": "Death of the Gods - Tower Defense",
+  "projectType": "VanillaJS-Game",
+  "techStack": {
+    "language": "JavaScript",
+    "framework": "None (Vanilla JS)",
+    "modules": "ES6",
+    "rendering": "Canvas API"
+  },
+  "architecture": {
+    "paradigm": "Object-Oriented Programming (OOP)",
+    "entityManagement": "Base Entity class with subclasses (Tower, Enemy, Hero, Projectile)",
+    "managers": [
+      "EnemyManager",
+      "TowerManager",
+      "ProjectileManager",
+      "UIManager",
+      "InputManager"
+    ],
+    "config": {
+      "driven": true,
+      "files": [
+        "TowerConfig.js",
+        "EnemyConfig.js",
+        "WaveConfig.js",
+        "ProjectileConfig.js",
+        "GameConstants.js",
+        "UIConfig.js",
+        "UILabels.js"
+      ]
+    }
+  },
+  "rendering": {
+    "engine": "Renderer.js",
+    "features": [
+      "drawEntity() with getDrawData()",
+      "fallback to shape rendering if image asset is missing",
+      "debug overlay with FPS, coordinates, wave info"
+    ],
+    "assetHandling": {
+      "loader": "AssetLoader.js",
+      "cache": "Map-based",
+      "fallback": true
+    }
+  },
+  "inputSystem": {
+    "abstraction": "InputManager.js",
+    "features": [
+      "Keyboard + Mouse support",
+      "Frame-safe detection (isKeyDown, isKeyJustPressed)",
+      "Extensible to gamepad, touch"
+    ]
+  },
+  "uiSystem": {
+    "abstraction": "UIManager.js",
+    "noDirectDOM": true,
+    "bindings": "init() receives DOM refs",
+    "sync": true
+  },
+  "stateManagement": {
+    "serialization": true,
+    "syncReady": true,
+    "methods": ["getState", "syncState"],
+    "snapshotTool": "Alt+S for state logging"
+  },
+  "debugging": {
+    "hotkeys": ["Alt+D (toggle debug)", "Alt+S (log state)"],
+    "overlay": true,
+    "modules": ["Debug.js"],
+    "features": ["FPS", "Mouse", "Hero HP", "Wave"]
+  },
+  "testing": {
+    "framework": "Vitest or Jest",
+    "types": ["unit", "integration", "state sync"],
+    "structure": "tests/ folder by module",
+    "helpers": "test-utils/MockContext.js"
+  },
+  "goals": {
+    "scalability": true,
+    "multiplayerReady": true,
+    "configurableContent": true,
+    "futureEditorSupport": true
+  },
+  "customInstructions": [
+    "When adding new towers/enemies/waves, ensure they are defined in config only.",
+    "When rendering, always check for image asset presence before drawing.",
+    "All new entity types should extend the base Entity class and implement update/draw."
+  ]
+}
