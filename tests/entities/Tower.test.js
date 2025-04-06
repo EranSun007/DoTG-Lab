@@ -45,21 +45,47 @@ describe('Tower', () => {
   });
 
   describe('attack behavior', () => {
+    let mockProjectileManager;
+
+    beforeEach(() => {
+      mockProjectileManager = {
+        createProjectile: vi.fn()
+      };
+    });
+
     it('should attack when cooldown is ready', () => {
-      const enemy = createMockEnemy('basic', { x: 50, y: 50 });
+      const enemy = createMockEnemy('basic', { x: 50, y: 50, health: 100 });
       const initialHealth = enemy.health;
 
+      // Test direct damage (no ProjectileManager)
       tower.attack(enemy);
       expect(enemy.health).toBe(initialHealth - tower.damage);
+
+      // Test with ProjectileManager
+      const enemy2 = createMockEnemy('basic', { x: 50, y: 50, health: 100 });
+      tower.attack(enemy2, mockProjectileManager);
+      expect(mockProjectileManager.createProjectile).toHaveBeenCalledWith(
+        tower.projectileType,
+        tower.x + tower.width / 2,
+        tower.y + tower.height / 2,
+        enemy2,
+        tower
+      );
     });
 
     it('should respect attack cooldown', () => {
-      const enemy = createMockEnemy('basic', { x: 50, y: 50 });
+      const enemy = createMockEnemy('basic', { x: 50, y: 50, health: 100 });
       const initialHealth = enemy.health;
 
       tower.attack(enemy);
-      tower.attack(enemy);
+      tower.attack(enemy); // Should not do damage due to cooldown
       expect(enemy.health).toBe(initialHealth - tower.damage);
+
+      // Test with ProjectileManager
+      const enemy2 = createMockEnemy('basic', { x: 50, y: 50 });
+      tower.attack(enemy2, mockProjectileManager);
+      tower.attack(enemy2, mockProjectileManager); // Should not create second projectile
+      expect(mockProjectileManager.createProjectile).toHaveBeenCalledTimes(1);
     });
   });
 

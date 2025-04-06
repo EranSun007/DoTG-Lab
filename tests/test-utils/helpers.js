@@ -1,4 +1,5 @@
 import { mockCanvas } from '../setup.js';
+import { Tower } from '../../js/entities/Tower.js';
 
 /**
  * Creates a mock game state for testing
@@ -32,6 +33,14 @@ export function createMockEntity(type, props = {}) {
     y: 0,
     width: 32,
     height: 32,
+    getDrawData: () => ({
+      type,
+      x: props.x || 0,
+      y: props.y || 0,
+      width: props.width || 32,
+      height: props.height || 32,
+      ...props
+    }),
     ...props,
   };
 }
@@ -40,17 +49,24 @@ export function createMockEntity(type, props = {}) {
  * Creates a mock tower entity
  * @param {string} type - Tower type
  * @param {Object} props - Additional properties
- * @returns {Object} Mock tower
+ * @returns {Tower} Mock tower
  */
 export function createMockTower(type, props = {}) {
-  return createMockEntity('tower', {
+  const tower = new Tower({
     type,
-    range: 100,
-    damage: 10,
-    attackSpeed: 1,
-    lastAttackTime: 0,
+    x: 0,
+    y: 0,
+    width: 32,
+    height: 32,
     ...props,
   });
+
+  // Override getDrawData if provided in props
+  if (props.getDrawData) {
+    tower.getDrawData = props.getDrawData;
+  }
+
+  return tower;
 }
 
 /**
@@ -65,6 +81,16 @@ export function createMockEnemy(type, props = {}) {
     health: 100,
     maxHealth: 100,
     speed: 1,
+    getDrawData: () => ({
+      type: `ENEMY_${type.toUpperCase()}`,
+      x: props.x || 0,
+      y: props.y || 0,
+      width: props.width || 32,
+      height: props.height || 32,
+      health: props.health || 100,
+      maxHealth: props.maxHealth || 100,
+      ...props
+    }),
     ...props,
   });
 }

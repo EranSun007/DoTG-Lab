@@ -16,6 +16,13 @@ export class Enemy extends Entity {
         ];
         this.currentPathIndex = 0;
         this.targetPoint = this.path[0];
+        
+        // Debug log for enemy initialization
+        console.log('Enemy created:', {
+            type: this.type,
+            health: this.health,
+            maxHealth: this.maxHealth
+        });
     }
 
     getAssetType() {
@@ -29,7 +36,7 @@ export class Enemy extends Entity {
     }
 
     getDrawData() {
-        return {
+        const drawData = {
             type: this.getAssetType(),
             x: this.x,
             y: this.y,
@@ -39,6 +46,10 @@ export class Enemy extends Entity {
             health: this.health,
             maxHealth: this.maxHealth
         };
+        
+        // Debug log for draw data
+        console.log('Enemy getDrawData:', drawData);
+        return drawData;
     }
 
     takeDamage(amount) {

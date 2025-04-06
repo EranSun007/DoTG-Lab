@@ -2,21 +2,27 @@ import { Entity } from './Entity.js';
 import { ProjectileConfig } from '../config/ProjectileConfig.js';
 import { GameConstants } from '../config/GameConstants.js';
 import { Debug } from '../utils/Debug.js';
+import { TowerConfig } from '../config/TowerConfig.js';
 
 export class Tower extends Entity {
     constructor(data) {
         super(data);
-        this.range = data.range || 200;
-        this.damage = data.damage || 20;
-        this.attackSpeed = data.attackSpeed || 1;
-        this.projectileSpeed = data.projectileSpeed || 300;
-        this.projectileSize = data.projectileSize || 10;
-        this.color = data.color || '#00ff00';
-        this.splashRadius = data.splashRadius || 0;
-        this.splashDamage = data.splashDamage || 0;
+        const config = TowerConfig[data.type] || TowerConfig.ranged;
+        
+        this.type = data.type || 'ranged';
+        this.range = data.range || config.range;
+        this.damage = data.damage || config.damage;
+        this.attackSpeed = data.attackSpeed || config.attackSpeed;
+        this.projectileSpeed = data.projectileSpeed || config.projectileSpeed;
+        this.projectileSize = data.projectileSize || config.projectileSize;
+        this.color = data.color || config.color;
+        this.splashRadius = data.splashRadius || config.splashRadius || 0;
+        this.splashDamage = data.splashDamage || config.splashDamage || 0;
         this.lastAttackTime = 0;
         this.cooldown = 0;
-        this.projectileType = data.projectileType || 'ARROW';
+        this.projectileType = data.projectileType || config.projectileType;
+        this.level = 1;
+        this.cost = data.cost || config.cost;
     }
 
     getAssetType() {
@@ -54,8 +60,16 @@ export class Tower extends Entity {
     }
 
     attack(target, projectileManager) {
+        if (!target) return;
+        
+        // If no ProjectileManager is provided, do direct damage
         if (!projectileManager) {
-            Debug.error('Cannot create projectile: ProjectileManager not available');
+            // Check cooldown for direct damage
+            if (this.cooldown > 0) return;
+            
+            target.health -= this.damage;
+            this.lastAttackTime = Date.now();
+            this.cooldown = 1000 / this.attackSpeed; // Convert to milliseconds
             return;
         }
 
@@ -67,27 +81,41 @@ export class Tower extends Entity {
             target,
             this
         );
+
+        this.lastAttackTime = Date.now();
+        this.cooldown = 1000 / this.attackSpeed; // Convert to milliseconds
     }
 
     update(deltaTime, gameState) {
-        // Update cooldown
+        // Update cooldown (deltaTime is in milliseconds)
         if (this.cooldown > 0) {
-            this.cooldown -= deltaTime;
+            this.cooldown = Math.max(0, this.cooldown - deltaTime);
         }
 
-        // Find and attack nearest enemy in range
+        // Find and attack nearest enemy in range, but only if not on cooldown
         if (this.cooldown <= 0) {
             const nearestEnemy = this.findNearestEnemy(gameState.enemies);
             if (nearestEnemy) {
                 this.attack(nearestEnemy, gameState.projectileManager);
-                this.cooldown = 1 / this.attackSpeed;
             }
         }
+    }
+
+    findTarget(enemies) {
+        return this.findNearestEnemy(enemies);
+    }
+
+    upgrade() {
+        this.level++;
+        this.range *= 1.2;
+        this.damage *= 1.3;
+        this.attackSpeed *= 1.1;
     }
 
     getState() {
         return {
             ...super.getState(),
+            type: 'tower',
             range: this.range,
             damage: this.damage,
             attackSpeed: this.attackSpeed,
@@ -96,7 +124,9 @@ export class Tower extends Entity {
             color: this.color,
             splashRadius: this.splashRadius,
             splashDamage: this.splashDamage,
-            projectileType: this.projectileType
+            projectileType: this.projectileType,
+            lastAttackTime: this.lastAttackTime,
+            level: this.level
         };
     }
 
@@ -111,5 +141,7 @@ export class Tower extends Entity {
         this.splashRadius = state.splashRadius;
         this.splashDamage = state.splashDamage;
         this.projectileType = state.projectileType;
+        this.lastAttackTime = state.lastAttackTime;
+        this.level = state.level;
     }
 } 

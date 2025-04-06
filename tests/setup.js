@@ -64,5 +64,20 @@ global.Image = vi.fn().mockImplementation(() => ({
   height: 32,
 }));
 
+// Mock asset loader
+const mockAssetLoader = {
+  get: vi.fn().mockImplementation((key) => {
+    // Return a mock image for specific asset keys
+    if (key.startsWith('TOWER_') || key.startsWith('ENEMY_') || key === 'BACKGROUND_TILE' || key === 'PATH') {
+      return {
+        width: 32,
+        height: 32,
+        drawImage: vi.fn()
+      };
+    }
+    return null;
+  })
+};
+
 // Export mock objects for use in tests
-export { mockContext, mockCanvas }; 
+export { mockContext, mockCanvas, mockAssetLoader }; 

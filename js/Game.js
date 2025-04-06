@@ -20,7 +20,7 @@ export class Game {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.assetLoader = new AssetLoader();
-        this.renderer = new Renderer(this.ctx, this.assetLoader);
+        this.renderer = new Renderer(this.canvas, this.assetLoader);
         this.inputManager = new InputManager(canvas);
         this.enemyManager = new EnemyManager();
         this.towerManager = new TowerManager();
@@ -254,7 +254,7 @@ export class Game {
                 for (let i = 0; i < enemyGroup.count; i++) {
                     // Calculate staggered spawn positions
                     const spawnOffset = i * 100; // Space enemies apart
-                    this.enemyManager.addEntity({
+                    this.enemyManager.addEnemy({
                         x: -spawnOffset, // Start off-screen
                         y: this.ctx.canvas.height / 2, // Center vertically
                         width: enemyConfig.width,
@@ -427,7 +427,7 @@ export class Game {
                 this.gold += enemyConfig.value;
                 this.uiManager.updateGold(this.gold);
                 // Remove the enemy
-                this.enemyManager.removeEntity(enemy.id);
+                this.enemyManager.removeEnemy(enemy.id);
             }
         });
 

@@ -4,8 +4,12 @@
   "type": "module",
   "scripts": {
     "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
+    "test:performance": "vitest run --testNamePattern=\"Performance Tests\"",
+    "test:integration": "vitest run --testNamePattern=\"Integration Tests\"",
+    "coverage": "node tests/coverage-report.js",
+    "coverage:html": "vitest run --coverage --reporter=html"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.1.4",
