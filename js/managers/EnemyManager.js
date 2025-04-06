@@ -46,46 +46,85 @@ export class EnemyManager {
     }
 
     /**
-     * Update all enemies
-     * @param {number} dt - Delta time
+     * Update all enemies and wave state
+     * @param {number} deltaTime - Time since last update in seconds
      * @param {Object} gameState - Current game state
      */
-    updateAll(dt, gameState) {
-        // Spawn new enemies if wave is active
-        if (this.currentWave && this.currentWave.enemiesSpawned < this.currentWave.config.count) {
-            const spawnInterval = this.currentWave.config.spawnInterval || 1000;
-            if (gameState.lastSpawnTime + spawnInterval <= gameState.currentTime) {
-                this.spawnEnemy();
-                gameState.lastSpawnTime = gameState.currentTime;
+    update(deltaTime, gameState) {
+        // Update wave state if active
+        if (this.currentWave) {
+            const waveConfig = this.currentWave.config;
+            
+            // Check if we should spawn a new enemy
+            if (this.currentWave.enemiesSpawned < waveConfig.totalEnemies) {
+                const timeSinceLastSpawn = performance.now() / 1000 - (this.currentWave.lastSpawnTime || 0);
+                if (timeSinceLastSpawn >= waveConfig.spawnInterval) {
+                    this.spawnEnemy();
+                    this.currentWave.lastSpawnTime = performance.now() / 1000;
+                    this.currentWave.enemiesSpawned++;
+                }
+            }
+            
+            // Check if wave is complete
+            if (this.currentWave.enemiesSpawned >= waveConfig.totalEnemies && 
+                this.enemies.length === 0) {
+                this.currentWave = null;
+                gameState.waveInProgress = false;
+                gameState.canStartWave = true;
             }
         }
 
-        // Update existing enemies
-        for (const enemy of this.enemies) {
-            enemy.update(dt, gameState);
+        // Update all enemies
+        this.enemies.forEach(enemy => {
+            enemy.update(deltaTime, gameState);
             
             // Remove dead enemies
-            if (enemy.health <= 0) {
+            if (!enemy.isAlive()) {
                 this.removeEnemy(enemy.id);
+                // Add gold reward
+                const enemyConfig = WaveConfig[gameState.currentWave].enemyTypes[enemy.type] || 
+                                  WaveConfig[gameState.currentWave].enemyTypes.basic;
+                gameState.gold += enemyConfig.value;
             }
-        }
+        });
     }
 
     /**
-     * Spawn a new enemy for the current wave
+     * Spawn a new enemy based on current wave configuration
      */
     spawnEnemy() {
         if (!this.currentWave) return;
 
-        const enemyType = this.currentWave.config.enemyType;
-        const path = this.currentWave.config.path;
-        const enemy = this.addEnemy({
+        const waveConfig = this.currentWave.config;
+        const enemyType = this.getRandomEnemyType(waveConfig.enemyTypes);
+        const enemyConfig = waveConfig.enemyTypes[enemyType];
+        
+        const enemy = new Enemy({
             type: enemyType,
-            path: path,
-            pathIndex: 0
+            health: enemyConfig.health,
+            speed: enemyConfig.speed,
+            value: enemyConfig.value,
+            path: waveConfig.path
         });
 
-        this.currentWave.enemiesSpawned++;
+        this.enemies.push(enemy);
+    }
+
+    /**
+     * Get a random enemy type based on spawn weights
+     * @param {Object} enemyTypes - Enemy type configurations
+     * @returns {string} Selected enemy type
+     */
+    getRandomEnemyType(enemyTypes) {
+        const totalWeight = Object.values(enemyTypes).reduce((sum, config) => sum + config.spawnWeight, 0);
+        let random = Math.random() * totalWeight;
+        
+        for (const [type, config] of Object.entries(enemyTypes)) {
+            random -= config.spawnWeight;
+            if (random <= 0) return type;
+        }
+        
+        return 'basic'; // Fallback
     }
 
     /**

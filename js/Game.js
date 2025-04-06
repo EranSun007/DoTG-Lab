@@ -1,6 +1,7 @@
 import { EnemyManager } from './managers/EnemyManager.js';
 import { TowerManager } from './managers/TowerManager.js';
 import { ProjectileManager } from './managers/ProjectileManager.js';
+import { GridManager } from './managers/GridManager.js';
 import { Hero } from './entities/Hero.js';
 import { TowerConfig } from './config/TowerConfig.js';
 import { EnemyConfig } from './config/EnemyConfig.js';
@@ -14,6 +15,7 @@ import { UIManager } from './managers/UIManager.js';
 import { DebugMenu } from './debug/DebugMenu.js';
 import { Debug } from './utils/Debug.js';
 import { UILabels } from './config/UILabels.js';
+import { GRID_CONFIG } from './config/GridConfig.js';
 
 export class Game {
     constructor(canvas, uiManager) {
@@ -25,6 +27,7 @@ export class Game {
         this.enemyManager = new EnemyManager();
         this.towerManager = new TowerManager();
         this.projectileManager = new ProjectileManager();
+        this.gridManager = new GridManager();
         this.uiManager = uiManager;
         this.debugMenu = new DebugMenu(this);
         
@@ -370,6 +373,10 @@ export class Game {
             }
         }
 
+        // Update hovered cell based on mouse position
+        const mousePos = this.inputManager.getMousePosition();
+        this.gridManager.updateHoveredCell(mousePos.x, mousePos.y);
+
         // Create game state once
         const gameState = {
             deltaTime: adjustedDeltaTime,
@@ -390,7 +397,7 @@ export class Game {
         });
 
         // Update managers
-        this.enemyManager.updateAll(adjustedDeltaTime, gameState);
+        this.enemyManager.update(adjustedDeltaTime, gameState);
         this.towerManager.updateAll(adjustedDeltaTime, gameState);
         this.projectileManager.updateAll(adjustedDeltaTime, gameState);
         this.inputManager.update();
@@ -466,37 +473,32 @@ export class Game {
      * @param {number} deltaTime - Time since last update in seconds
      */
     handleHeroMovement(deltaTime) {
-        const speed = 400 * deltaTime;
-        
         // Get input state
-        const left = this.inputManager.isKeyDown('ArrowLeft');
-        const right = this.inputManager.isKeyDown('ArrowRight');
-        const up = this.inputManager.isKeyDown('ArrowUp');
-        const down = this.inputManager.isKeyDown('ArrowDown');
+        const left = this.inputManager.isKeyDown('ArrowLeft') || this.inputManager.isKeyDown('a');
+        const right = this.inputManager.isKeyDown('ArrowRight') || this.inputManager.isKeyDown('d');
+        const up = this.inputManager.isKeyDown('ArrowUp') || this.inputManager.isKeyDown('w');
+        const down = this.inputManager.isKeyDown('ArrowDown') || this.inputManager.isKeyDown('s');
 
-        // Calculate movement
-        let dx = 0;
-        let dy = 0;
+        // Only process movement if hero is not currently moving
+        if (!this.hero.moving) {
+            // Get current grid position
+            const currentGridX = Math.floor(this.hero.x / GRID_CONFIG.CELL_SIZE);
+            const currentGridY = Math.floor(this.hero.y / GRID_CONFIG.CELL_SIZE);
+            
+            // Calculate target grid position
+            let targetGridX = currentGridX;
+            let targetGridY = currentGridY;
 
-        if (left) dx -= 1;
-        if (right) dx += 1;
-        if (up) dy -= 1;
-        if (down) dy += 1;
+            if (left) targetGridX--;
+            if (right) targetGridX++;
+            if (up) targetGridY--;
+            if (down) targetGridY++;
 
-        // Normalize diagonal movement
-        if (dx !== 0 && dy !== 0) {
-            const factor = 1 / Math.sqrt(2);
-            dx *= factor;
-            dy *= factor;
+            // Only move if position changed
+            if (targetGridX !== currentGridX || targetGridY !== currentGridY) {
+                this.hero.moveToCell(targetGridX, targetGridY);
+            }
         }
-
-        // Apply movement
-        this.hero.x += dx * speed;
-        this.hero.y += dy * speed;
-
-        // Keep hero within canvas bounds
-        this.hero.x = Math.max(0, Math.min(this.canvas.width - this.hero.width, this.hero.x));
-        this.hero.y = Math.max(0, Math.min(this.canvas.height - this.hero.height, this.hero.y));
     }
 
     /**
@@ -509,13 +511,8 @@ export class Game {
         // Draw background
         this.renderer.drawBackground();
         
-        // Draw grid if debug mode is enabled
-        if (this.debug) {
-            const debugState = this.debugMenu.getDebugState();
-            if (debugState.showGrid) {
-                this.renderer.drawGrid();
-            }
-        }
+        // Draw grid
+        this.gridManager.draw(this.ctx);
         
         // Draw all game entities
         this.renderer.drawAll(this.enemyManager.getAll());
@@ -528,7 +525,7 @@ export class Game {
         if (this.hero) {
             this.renderer.drawEntity(this.hero);
         }
-
+        
         // Draw colliders if debug mode is enabled
         if (this.debug) {
             const debugState = this.debugMenu.getDebugState();
@@ -541,7 +538,7 @@ export class Game {
                 this.renderer.drawColliders(allEntities);
             }
         }
-
+        
         // Draw debug overlay if debug mode is enabled
         if (this.debug) {
             this.renderer.drawDebugOverlay(this);

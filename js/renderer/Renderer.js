@@ -1,5 +1,6 @@
 import { Debug } from '../utils/Debug.js';
 import { UILabels } from '../config/UILabels.js';
+import { GameConstants } from '../config/GameConstants.js';
 
 export class Renderer {
     constructor(canvas, assetLoader) {
@@ -37,45 +38,30 @@ export class Renderer {
         // Draw path
         const pathImage = this.assetLoader.get('PATH');
         if (pathImage) {
-            // Define a single horizontal path
-            const pathWidth = 64; // Standard path width
-            const pathY = (this.canvas.height - pathWidth) / 2; // Center vertically
+            const pathWidth = GameConstants.PATH_WIDTH;
+            const pathY = (this.canvas.height - pathWidth) / 2;
             const pathSegments = [
-                // Single horizontal line across the screen
                 { x: 0, y: pathY, width: this.canvas.width, height: pathWidth }
             ];
 
             pathSegments.forEach(segment => {
-                // Calculate number of tiles needed in each direction
-                const tileSize = 64; // Base tile size
+                const tileSize = 64;
                 const tilesX = Math.ceil(segment.width / tileSize);
                 const tilesY = Math.ceil(segment.height / tileSize);
-                
-                // Draw tiles to fill the segment
-                for (let tx = 0; tx < tilesX; tx++) {
-                    for (let ty = 0; ty < tilesY; ty++) {
-                        // Calculate the size of this specific tile (handle edge cases)
-                        const tileWidth = Math.min(tileSize, segment.width - (tx * tileSize));
-                        const tileHeight = Math.min(tileSize, segment.height - (ty * tileSize));
-                        
-                        // Calculate position for this tile
-                        const tileX = segment.x + (tx * tileSize);
-                        const tileY = segment.y + (ty * tileSize);
-                        
-                        // Draw the tile
-                        this.ctx.drawImage(
-                            pathImage,
-                            0, 0, pathImage.width, pathImage.height, // Source rectangle
-                            tileX, tileY, tileWidth, tileHeight // Destination rectangle
-                        );
+
+                for (let x = 0; x < tilesX; x++) {
+                    for (let y = 0; y < tilesY; y++) {
+                        const drawX = segment.x + x * tileSize;
+                        const drawY = segment.y + y * tileSize;
+                        this.ctx.drawImage(pathImage, drawX, drawY, tileSize, tileSize);
                     }
                 }
             });
         } else {
             // Fallback: Draw a solid color path
-            const pathWidth = 64;
+            const pathWidth = GameConstants.PATH_WIDTH;
             const pathY = (this.canvas.height - pathWidth) / 2;
-            this.ctx.fillStyle = '#2a2a2a';
+            this.ctx.fillStyle = '#3a3a3a';
             this.ctx.fillRect(0, pathY, this.canvas.width, pathWidth);
             Debug.warn('Path asset not found, using fallback color');
         }
@@ -100,65 +86,139 @@ export class Renderer {
 
         this.ctx.save();
 
-        // Draw health bar for enemies first (before any transformations)
-        if (drawData.type.startsWith('ENEMY_') && typeof drawData.health === 'number' && typeof drawData.maxHealth === 'number') {
-            const healthBarWidth = drawData.width;
-            const healthBarHeight = 6;
-            const healthBarY = drawData.y - healthBarHeight - 4;
-
-            // Health bar background (red)
-            this.ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
-            this.ctx.fillRect(drawData.x, healthBarY, healthBarWidth, healthBarHeight);
-
-            // Health bar fill (green)
-            const healthPercentage = Math.max(0, Math.min(1, drawData.health / drawData.maxHealth));
-            this.ctx.fillStyle = 'rgba(0, 255, 0, 0.9)';
-            this.ctx.fillRect(drawData.x, healthBarY, healthBarWidth * healthPercentage, healthBarHeight);
-
-            // Health bar border
-            this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
-            this.ctx.lineWidth = 1;
-            this.ctx.strokeRect(drawData.x, healthBarY, healthBarWidth, healthBarHeight);
-        }
-
-        // Draw range indicator for towers
-        if (drawData.type.startsWith('TOWER_') && drawData.range) {
-            this.ctx.beginPath();
-            this.ctx.arc(
-                drawData.x + drawData.width / 2,
-                drawData.y + drawData.height / 2,
-                drawData.range,
-                0,
-                Math.PI * 2
-            );
-            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            this.ctx.fill();
-            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            this.ctx.stroke();
-        }
-
-        // Draw the entity sprite or fallback shape
+        // Get sprite from asset loader
         const sprite = this.assetLoader.get(drawData.type);
+        
         if (sprite) {
-            // Center the sprite
-            const centerX = drawData.x + drawData.width / 2;
-            const centerY = drawData.y + drawData.height / 2;
-            this.ctx.translate(centerX, centerY);
-            
+            // Draw sprite
             this.ctx.drawImage(
                 sprite,
-                -drawData.width / 2,
-                -drawData.height / 2,
+                drawData.x,
+                drawData.y,
                 drawData.width,
                 drawData.height
             );
         } else {
-            // Fallback to colored rectangle
-            this.ctx.fillStyle = '#ff0000';
-            this.ctx.fillRect(drawData.x, drawData.y, drawData.width, drawData.height);
+            // Fallback: Draw colored rectangle
+            this.ctx.fillStyle = this.getFallbackColor(drawData.type);
+            this.ctx.fillRect(
+                drawData.x,
+                drawData.y,
+                drawData.width,
+                drawData.height
+            );
+        }
+
+        // Draw range indicator if entity has range
+        if (drawData.range) {
+            this.drawRangeIndicator(drawData);
+        }
+
+        // Draw health bar if entity has health
+        if (drawData.health !== undefined && drawData.maxHealth !== undefined) {
+            this.drawHealthBar(drawData);
         }
 
         this.ctx.restore();
+    }
+
+    drawSprite(sprite, x, y, width, height) {
+        if (!sprite) return;
+        this.ctx.drawImage(sprite, x, y, width, height);
+    }
+
+    batchDraw(entities) {
+        if (!Array.isArray(entities)) return;
+
+        // Group entities by type for batch rendering
+        const entityGroups = {};
+        entities.forEach(entity => {
+            if (!entity || typeof entity.getDrawData !== 'function') return;
+            
+            const drawData = entity.getDrawData();
+            if (!drawData) return;
+
+            const type = drawData.type;
+            if (!entityGroups[type]) {
+                entityGroups[type] = [];
+            }
+            entityGroups[type].push(drawData);
+        });
+
+        // Draw each group
+        Object.entries(entityGroups).forEach(([type, group]) => {
+            const sprite = this.assetLoader.get(type);
+            
+            this.ctx.save();
+            
+            if (sprite) {
+                group.forEach(drawData => {
+                    this.ctx.drawImage(sprite, drawData.x, drawData.y, drawData.width, drawData.height);
+                });
+            } else {
+                // Fallback for missing sprites
+                const color = this.getFallbackColor(type);
+                this.ctx.fillStyle = color;
+                group.forEach(drawData => {
+                    this.ctx.fillRect(drawData.x, drawData.y, drawData.width, drawData.height);
+                });
+            }
+            
+            this.ctx.restore();
+        });
+    }
+
+    drawRangeIndicator(drawData) {
+        this.ctx.beginPath();
+        this.ctx.arc(
+            drawData.x + drawData.width / 2,
+            drawData.y + drawData.height / 2,
+            drawData.range,
+            0,
+            Math.PI * 2
+        );
+        
+        // Get the appropriate color based on entity type
+        const colorKey = drawData.type.startsWith('TOWER_') ? 'TOWER' : 
+                        drawData.type.startsWith('HERO_') ? 'HERO' : 'TOWER';
+        
+        this.ctx.fillStyle = GameConstants.RANGE_INDICATOR_COLORS[`${colorKey}_FILL`];
+        this.ctx.fill();
+        this.ctx.strokeStyle = GameConstants.RANGE_INDICATOR_COLORS[colorKey];
+        this.ctx.stroke();
+    }
+
+    drawHealthBar(drawData) {
+        const barWidth = drawData.width;
+        const barHeight = GameConstants.HEALTH_BAR_HEIGHT;
+        const barX = drawData.x;
+        const barY = drawData.y - GameConstants.HEALTH_BAR_OFFSET;
+
+        // Draw background
+        this.ctx.fillStyle = 'black';
+        this.ctx.fillRect(barX, barY, barWidth, barHeight);
+
+        // Draw health
+        const healthPercent = drawData.health / drawData.maxHealth;
+        let healthColor = GameConstants.HEALTH_BAR_COLORS.HIGH;
+        if (healthPercent <= GameConstants.HEALTH_THRESHOLD_LOW) {
+            healthColor = GameConstants.HEALTH_BAR_COLORS.LOW;
+        } else if (healthPercent <= GameConstants.HEALTH_THRESHOLD_HIGH) {
+            healthColor = GameConstants.HEALTH_BAR_COLORS.MEDIUM;
+        }
+
+        this.ctx.fillStyle = healthColor;
+        this.ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+    }
+
+    getFallbackColor(type) {
+        const colors = {
+            TOWER: '#3498db',
+            ENEMY: '#e74c3c',
+            HERO: '#2ecc71',
+            PROJECTILE: '#f1c40f'
+        };
+        return colors[type] || '#95a5a6';
     }
 
     drawGrid() {
@@ -187,6 +247,8 @@ export class Renderer {
 
         this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
         entities.forEach(entity => {
+            if (!entity || typeof entity.getDrawData !== 'function') return;
+            
             const drawData = entity.getDrawData();
             if (drawData) {
                 this.ctx.strokeRect(drawData.x, drawData.y, drawData.width, drawData.height);
