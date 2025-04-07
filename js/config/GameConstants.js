@@ -9,6 +9,7 @@ export const GameConstants = {
     CANVAS_HEIGHT: 600,
     TILE_SIZE: 32,
     PATH_WIDTH: 64,
+    PATH_WORLD_Y: 600 / 2 - 64 / 2, // Calculated world Y position for the top of the path
     
     // Entity dimensions
     TOWER_SIZE: 40,

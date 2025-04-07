@@ -4,14 +4,15 @@ import { Debug } from '../utils/Debug.js';
  * Manages user input and event handling
  */
 export class InputManager {
-    constructor(canvas) {
+    constructor(canvas, renderer) {
         this.canvas = canvas;
+        this.renderer = renderer;
         this.keys = new Set();
         this.previousKeys = new Set(); // Track previous key states
-        this.mousePosition = { x: 0, y: 0 };
+        this.mouseScreenPosition = { x: 0, y: 0 };
         this.isMousePressed = false;
         this.lastMousePressed = false; // Track previous state for click detection
-        this.debug = true; // Added for the new isKeyDown method
+        this.debug = false; // Disable excessive key checking logs
         
         // Bind event handlers
         this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -44,7 +45,7 @@ export class InputManager {
 
     handleMouseMove(event) {
         const rect = this.canvas.getBoundingClientRect();
-        this.mousePosition = {
+        this.mouseScreenPosition = {
             x: event.clientX - rect.left,
             y: event.clientY - rect.top
         };
@@ -76,7 +77,18 @@ export class InputManager {
     }
 
     getMousePosition() {
-        return this.mousePosition;
+        if (this.renderer && this.renderer.camera) {
+            return this.renderer.camera.screenToWorld(
+                this.mouseScreenPosition.x,
+                this.mouseScreenPosition.y
+            );
+        }
+        Debug.warn('Renderer or camera not available for mouse position conversion.');
+        return this.mouseScreenPosition;
+    }
+
+    getMouseScreenPosition() {
+        return this.mouseScreenPosition;
     }
 
     isMousePressed() {
@@ -89,7 +101,8 @@ export class InputManager {
         
         // Update any input state that needs to be updated every frame
         if (this.isMousePressed) {
-            console.log('Mouse is currently pressed at:', this.mousePosition);
+            const worldPos = this.getMousePosition(); 
+            console.log('Mouse is currently pressed at world coordinates:', worldPos);
         }
     }
 
@@ -107,7 +120,7 @@ export class InputManager {
         // Clear state
         this.keys.clear();
         this.keys = null;
-        this.mousePosition = { x: 0, y: 0 };
+        this.mouseScreenPosition = { x: 0, y: 0 };
         this.isMousePressed = false;
         this.previousKeys.clear();
 

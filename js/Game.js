@@ -16,6 +16,7 @@ import { DebugMenu } from './debug/DebugMenu.js';
 import { Debug } from './utils/Debug.js';
 import { UILabels } from './config/UILabels.js';
 import { GRID_CONFIG } from './config/GridConfig.js';
+import { Pathfinder } from './utils/Pathfinder.js';
 
 export class Game {
     constructor(canvas, uiManager) {
@@ -23,15 +24,16 @@ export class Game {
         this.ctx = canvas.getContext('2d');
         this.assetLoader = new AssetLoader();
         this.renderer = new Renderer(this.canvas, this.assetLoader);
-        this.inputManager = new InputManager(canvas);
+        this.inputManager = new InputManager(canvas, this.renderer);
         this.enemyManager = new EnemyManager();
         this.towerManager = new TowerManager();
         this.projectileManager = new ProjectileManager();
         this.gridManager = new GridManager();
+        this.pathfinder = new Pathfinder(this.gridManager);
         this.uiManager = uiManager;
         this.debugMenu = new DebugMenu(this);
         
-        // Test obstacles
+        // Define obstacles first
         this.obstacles = [
             // Walls
             { x: 100, y: 100, width: 50, height: 200, color: 'gray', type: 'wall' },
@@ -42,6 +44,12 @@ export class Game {
             { x: 500, y: 100, width: 60, height: 60, color: 'green', type: 'tree' },
             { x: 520, y: 170, width: 40, height: 40, color: 'darkgreen', type: 'tree' },
         ];
+
+        // Initialize GridManager with static obstacles (now that obstacles are defined)
+        this.gridManager.updateGridWithObstacles(this.obstacles);
+
+        // Test obstacles <-- Remove this duplicate definition if it exists below
+        // this.obstacles = [ ... ];
         
         // Initialize hero at center of canvas
         this.hero = new Hero({
@@ -57,6 +65,8 @@ export class Game {
         });
         this.entities = new Map();
         this.entities.set(this.hero.id, this.hero);
+        
+        this.renderer.setCameraTarget(this.hero);
         
         this.isLoading = true;
         this.isRunning = false;
@@ -146,6 +156,9 @@ export class Game {
             ranged: () => this.selectTower('ranged'),
             aoe: () => this.selectTower('aoe')
         });
+
+        // Bind start wave handler
+        this.uiManager.bindStartWave(this.startWave.bind(this));
     }
 
     /**
@@ -189,10 +202,19 @@ export class Game {
             return;
         }
 
-        // Check if placement is valid (not on path)
-        const pathY = this.canvas.height / 2;
-        const pathHeight = 64; // Standard path width
-        if (Math.abs(y - pathY) < pathHeight / 2) {
+        // Check if placement is valid (not on path - using world coordinates)
+        const pathTopY = GameConstants.PATH_WORLD_Y;
+        const pathBottomY = pathTopY + GameConstants.PATH_WIDTH;
+        const towerCenterY = y; // 'y' is already world coordinate from inputManager
+
+        // --- DEBUG LOGGING START ---
+        Debug.log('Path Check - Tower Y:', towerCenterY, 'Path Top:', pathTopY, 'Path Bottom:', pathBottomY);
+        const isOnPath = towerCenterY >= pathTopY && towerCenterY <= pathBottomY;
+        Debug.log('Is click on path?', isOnPath);
+        // --- DEBUG LOGGING END ---
+
+        // Approximate check: is the click Y within the path's Y bounds?
+        if (isOnPath) {
             Debug.log('Cannot place tower: Invalid location (on path)');
             return;
         }
@@ -271,13 +293,18 @@ export class Game {
                     const spawnOffset = i * 100; // Space enemies apart
                     this.enemyManager.addEnemy({
                         x: -spawnOffset, // Start off-screen
-                        y: this.ctx.canvas.height / 2, // Center vertically
+                        y: GameConstants.PATH_WORLD_Y + GameConstants.PATH_WIDTH / 2, // Start on path Y
                         width: enemyConfig.width,
                         height: enemyConfig.height,
                         health: enemyConfig.health,
                         speed: enemyConfig.speed,
                         type: enemyGroup.type,
-                        value: enemyConfig.value
+                        value: enemyConfig.value,
+                        gridManager: this.gridManager, // Pass gridManager
+                        pathfinder: this.pathfinder,   // Pass pathfinder
+                        // Goal position (e.g., right edge, centered on path Y)
+                        goalX: GRID_CONFIG.GRID_WIDTH * GRID_CONFIG.CELL_SIZE - GRID_CONFIG.CELL_SIZE, // Target last column
+                        goalY: GameConstants.PATH_WORLD_Y + GameConstants.PATH_WIDTH / 2
                     });
                 }
             }
@@ -563,53 +590,28 @@ export class Game {
     }
 
     /**
-     * Render game state
+     * Render the game state
      */
     render() {
-        // Clear the canvas
-        this.renderer.clear();
-        
-        // Draw background
-        this.renderer.drawBackground();
-        
-        // Draw grid
-        this.gridManager.draw(this.ctx);
-        
-        // Draw obstacles
-        for (const obstacle of this.obstacles) {
-            this.ctx.fillStyle = obstacle.color;
-            this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-        }
-        
-        // Draw all game entities
-        this.renderer.drawAll(this.enemyManager.getAll());
-        this.renderer.drawAll(this.towerManager.getAll());
-        
-        // Draw projectiles
-        this.projectileManager.drawAll(this.ctx);
-        
-        // Draw hero if exists
-        if (this.hero) {
-            this.renderer.drawEntity(this.hero);
-        }
-        
-        // Draw colliders if debug mode is enabled
-        if (this.debug) {
-            const debugState = this.debugMenu.getDebugState();
-            if (debugState.showColliders) {
-                const allEntities = [
-                    ...this.enemyManager.getAll(),
-                    ...this.towerManager.getAll(),
-                    this.hero
-                ].filter(Boolean);
-                this.renderer.drawColliders(allEntities);
-            }
-        }
-        
-        // Draw debug overlay if debug mode is enabled
-        if (this.debug) {
-            this.renderer.drawDebugOverlay(this);
-        }
+        // Construct a state object specifically for rendering
+        const renderState = {
+            debug: this.debug, // Pass debug flag
+            debugMenu: this.debugMenu, // Pass debug menu for overlay
+            input: this.inputManager, // Pass input for overlay
+            hero: this.hero, // Pass the actual hero object
+            enemies: this.enemyManager.getAll(), // Pass the array of actual enemy objects
+            towers: this.towerManager.getAll(), // Pass the array of actual tower objects
+            projectiles: Array.from(this.projectileManager.projectiles.values()), // Correctly get projectiles from the Map
+            obstacles: this.obstacles, // Pass obstacles array
+            // Include other relevant state needed ONLY for rendering (e.g., debug overlay info)
+            gold: this.gold,
+            lives: this.lives,
+            currentWave: this.currentWave,
+            deltaTime: this.deltaTime, // Pass deltaTime for FPS calculation in overlay
+        };
+
+        // Pass the rendering-specific state and deltaTime to the renderer
+        this.renderer.render(renderState, this.deltaTime);
     }
 
     /**

@@ -1,12 +1,14 @@
 import { Debug } from '../utils/Debug.js';
 import { UILabels } from '../config/UILabels.js';
 import { GameConstants } from '../config/GameConstants.js';
+import { Camera } from '../game/Camera.js';
 
 export class Renderer {
     constructor(canvas, assetLoader) {
         this.canvas = canvas;
         this.ctx = typeof canvas.getContext === 'function' ? canvas.getContext('2d') : canvas;
         this.assetLoader = assetLoader;
+        this.camera = new Camera(this.canvas.width, this.canvas.height);
         
         // Initialize default rendering options
         this.debug = false;
@@ -14,57 +16,127 @@ export class Renderer {
         this.showColliders = false;
     }
 
+    setCameraTarget(target) {
+        this.camera.setTarget(target);
+    }
+
+    render(gameState, deltaTime) {
+        if (!gameState) return;
+
+        this.camera.update(deltaTime);
+
+        this.clear();
+
+        this.ctx.save();
+        this.camera.applyTransform(this.ctx);
+
+        this.drawWorldBackground();
+        this.drawPath();
+        this.drawGrid();
+
+        // Draw obstacles (world-based)
+        this.drawObstacles(gameState.obstacles);
+
+        // Draw game entities (already in world coordinates)
+        this.drawAll(gameState.enemies);
+        this.drawAll(gameState.towers);
+        this.drawAll(gameState.projectiles);
+        if (gameState.hero) {
+            this.drawEntity(gameState.hero);
+        }
+        
+        if (this.showColliders) {
+            const allEntities = [
+                ...(gameState.enemies || []),
+                ...(gameState.towers || []),
+                ...(gameState.projectiles || []),
+                ...(gameState.hero ? [gameState.hero] : [])
+            ];
+            this.drawColliders(allEntities);
+        }
+
+        this.ctx.restore();
+
+        // --- Screen Space Drawing (After Camera Transform is Restored) ---
+        // Draw UI elements and Debug overlay which should be fixed on screen
+        if (gameState.debug) {
+            this.drawDebugOverlay(gameState);
+        }
+        // Future: Draw UI elements here (e.g., HUD, menus)
+    }
+
     clear() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
-    drawBackground() {
-        // Draw background tiles
+    drawWorldBackground() {
         const backgroundTile = this.assetLoader.get('BACKGROUND_TILE');
+        const tileSize = 32; // Assuming square tiles
+
         if (backgroundTile) {
-            const tileSize = 32;
-            for (let x = 0; x < this.canvas.width; x += tileSize) {
-                for (let y = 0; y < this.canvas.height; y += tileSize) {
-                    this.ctx.drawImage(backgroundTile, x, y, tileSize, tileSize);
-                }
-            }
+            // Calculate the start and end tile indices based on camera view
+            const startX = Math.floor(this.camera.x / tileSize) * tileSize;
+            const startY = Math.floor(this.camera.y / tileSize) * tileSize;
+            // Draw slightly larger than the camera view to avoid gaps at edges
+            const endX = Math.ceil((this.camera.x + this.camera.width) / tileSize) * tileSize;
+            const endY = Math.ceil((this.camera.y + this.camera.height) / tileSize) * tileSize;
+
+            this.ctx.fillStyle = this.ctx.createPattern(backgroundTile, 'repeat');
+            // Fill the visible rectangle area with the pattern
+            // Note: Using fillRect with pattern is often more efficient for large tiled areas
+            // However, if specific tile drawing logic is needed, a loop is fine.
+            this.ctx.fillRect(startX, startY, endX - startX, endY - startY);
+
+            // // Alternative: Loop-based drawing (keep if pattern fill doesn't work as expected)
+            // for (let x = startX; x < endX; x += tileSize) {
+            //     for (let y = startY; y < endY; y += tileSize) {
+            //         this.ctx.drawImage(backgroundTile, x, y, tileSize, tileSize);
+            //     }
+            // }
         } else {
-            // Fallback: Draw a solid color background
+            // Fallback: Draw a solid color background covering the camera view
             this.ctx.fillStyle = '#2a2a2a';
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.fillRect(this.camera.x, this.camera.y, this.camera.width, this.camera.height);
             Debug.warn('Background tile asset not found, using fallback color');
         }
+    }
 
-        // Draw path
+    drawPath() {
         const pathImage = this.assetLoader.get('PATH');
+        const pathWidth = GameConstants.PATH_WIDTH;
+        // Use the constant for world Y position
+        const pathY = GameConstants.PATH_WORLD_Y;
+        // Define path bounds in world coordinates (needs a proper map width ideally)
+        const pathWorldStartX = -1000; // Arbitrarily large negative start
+        const pathWorldEndX = 2000;   // Arbitrarily large positive end
+        const pathWorldWidth = pathWorldEndX - pathWorldStartX;
+
         if (pathImage) {
-            const pathWidth = GameConstants.PATH_WIDTH;
-            const pathY = (this.canvas.height - pathWidth) / 2;
-            const pathSegments = [
-                { x: 0, y: pathY, width: this.canvas.width, height: pathWidth }
-            ];
+             const tileSize = 64; // Use the path tile size
+             const pattern = this.ctx.createPattern(pathImage, 'repeat-x'); // Repeat horizontally
 
-            pathSegments.forEach(segment => {
-                const tileSize = 64;
-                const tilesX = Math.ceil(segment.width / tileSize);
-                const tilesY = Math.ceil(segment.height / tileSize);
-
-                for (let x = 0; x < tilesX; x++) {
-                    for (let y = 0; y < tilesY; y++) {
-                        const drawX = segment.x + x * tileSize;
-                        const drawY = segment.y + y * tileSize;
-                        this.ctx.drawImage(pathImage, drawX, drawY, tileSize, tileSize);
-                    }
-                }
-            });
+            if (pattern) {
+                this.ctx.fillStyle = pattern;
+                 // Apply translation for the pattern start relative to path segment start
+                 this.ctx.save();
+                 this.ctx.translate(pathWorldStartX, pathY);
+                 this.ctx.fillRect(0, 0, pathWorldWidth, pathWidth); 
+                 this.ctx.restore();
+             } else {
+                 Debug.warn('Failed to create pattern for path image. Drawing tile by tile.');
+                 this.drawPathFallback(pathWorldStartX, pathY, pathWorldWidth, pathWidth);
+             }
         } else {
-            // Fallback: Draw a solid color path
-            const pathWidth = GameConstants.PATH_WIDTH;
-            const pathY = (this.canvas.height - pathWidth) / 2;
-            this.ctx.fillStyle = '#3a3a3a';
-            this.ctx.fillRect(0, pathY, this.canvas.width, pathWidth);
-            Debug.warn('Path asset not found, using fallback color');
+            // Fallback: Draw a solid color path in world coordinates
+            this.drawPathFallback(pathWorldStartX, pathY, pathWorldWidth, pathWidth);
         }
+    }
+    
+    // Helper for drawing path without pattern/image asset
+    drawPathFallback(worldX, worldY, worldWidth, pathHeight) {
+        this.ctx.fillStyle = '#3a3a3a';
+        this.ctx.fillRect(worldX, worldY, worldWidth, pathHeight);
+        Debug.warn('Path asset not found, using fallback color');
     }
 
     drawAll(entities) {
@@ -286,5 +358,26 @@ export class Renderer {
         }
 
         this.ctx.restore();
+    }
+
+    worldToScreen(worldX, worldY) {
+        return this.camera.worldToScreen(worldX, worldY);
+    }
+
+    // Method to draw static obstacles
+    drawObstacles(obstacles) {
+        if (!Array.isArray(obstacles)) return;
+
+        obstacles.forEach(obstacle => {
+            // Simple rectangle drawing for now, assuming obstacles have x, y, width, height, color
+            if (obstacle.color) {
+                this.ctx.fillStyle = obstacle.color;
+            } else {
+                this.ctx.fillStyle = '#555'; // Default obstacle color
+            }
+            this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            
+            // Optional: Add border or texture based on obstacle.type later
+        });
     }
 } 

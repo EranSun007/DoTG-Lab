@@ -5,6 +5,8 @@ import { Renderer } from '../../js/renderer/Renderer.js';
 import { AssetLoader } from '../../js/utils/AssetLoader.js';
 import { GameConstants } from '../../js/config/GameConstants.js';
 
+vi.mock('../../js/utils/AssetLoader.js');
+
 describe('Renderer', () => {
   let renderer;
   let mockAssetLoaderInstance;
@@ -30,64 +32,78 @@ describe('Renderer', () => {
     });
   });
 
-  describe('background rendering', () => {
-    it('should draw background tiles when assets are available', () => {
-      mockAssetLoaderInstance.get.mockImplementation((key) => {
-         if (key === 'BACKGROUND_TILE') return { width: 32, height: 32, isMockAsset: true };
-         if (key === 'PATH') return { width: 64, height: 64, isMockAsset: true };
-         return null;
-      });
+  describe('main render method', () => {
+    let mockGameState;
 
-      renderer.drawBackground();
-      expect(mockContext.drawImage).toHaveBeenCalled();
-      expect(mockContext.fillRect).not.toHaveBeenCalled();
+    beforeEach(() => {
+      // Basic gameState for rendering tests
+      mockGameState = {
+          debug: false,
+          hero: { id: 'h1', getDrawData: () => ({ type: 'HERO', x: 10, y: 10, width: 30, height: 30 }) },
+          enemies: [
+              { id: 'e1', getDrawData: () => ({ type: 'ENEMY', x: 50, y: 50, width: 20, height: 20 }) }
+          ],
+          towers: [],
+          projectiles: [],
+          obstacles: [
+              { x: 100, y: 100, width: 50, height: 50, color: 'gray' }
+          ],
+          // Add mocks for properties used by drawDebugOverlay
+          debugMenu: {
+              getDebugState: vi.fn(() => ({ showFPS: true, /* other flags */ })) // Mock the state object it returns
+          },
+          input: {
+              getMousePosition: vi.fn(() => ({ x: 1, y: 1 })), // Mock mouse position
+              // Add other input methods if drawDebugOverlay uses them
+          },
+          deltaTime: 0.016, // Mock deltaTime if needed by overlay
+          currentWave: 1, // Mock wave number if needed
+          lives: 3, // Mock lives if needed
+          gold: 100 // Mock gold if needed
+      };
+      // Spy on internal draw methods
+      vi.spyOn(renderer, 'clear');
+      vi.spyOn(renderer, 'drawWorldBackground');
+      vi.spyOn(renderer, 'drawPath');
+      vi.spyOn(renderer, 'drawGrid');
+      vi.spyOn(renderer, 'drawObstacles');
+      vi.spyOn(renderer, 'drawAll');
+      vi.spyOn(renderer, 'drawEntity');
+      vi.spyOn(renderer.camera, 'update');
+      vi.spyOn(renderer.camera, 'applyTransform');
     });
 
-    it('should draw fallback background when assets are missing', () => {
-      mockAssetLoaderInstance.get.mockImplementation((key) => {
-          if (key === 'PATH') return { width: 64, height: 64, isMockAsset: true };
-          return null;
-      });
-
-      renderer.drawBackground();
-
-      const backgroundFallbackCall = mockContext.fillRect.mock.calls.find(call => call[0] === 0 && call[1] === 0);
-      expect(backgroundFallbackCall).toBeDefined();
-
-      expect(mockContext.fillRect).toHaveBeenCalled();
-      expect(mockContext.drawImage).toHaveBeenCalled();
-
-      const backgroundFillStyleAssignment = mockContext.fillStyle = '#2a2a2a';
-      expect(mockContext.fillRect).toHaveBeenCalledWith(0, 0, mockCanvas.width, mockCanvas.height);
-
-      const fillStyleCalls = mockContext.fillStyle;
-      expect(mockContext.fillStyle).not.toBe('#3a3a3a');
+    it('should call camera update and applyTransform', () => {
+        renderer.render(mockGameState, 0.016);
+        expect(renderer.camera.update).toHaveBeenCalledWith(0.016);
+        expect(renderer.camera.applyTransform).toHaveBeenCalled();
     });
 
-    it('should draw path tiles when assets are available', () => {
-      mockAssetLoaderInstance.get.mockImplementation((key) => {
-        if (key === 'PATH') {
-          return { width: 64, height: 64 };
-        }
-        return null;
-      });
-
-      renderer.drawBackground();
-      expect(mockContext.drawImage).toHaveBeenCalled();
-      const pathFallbackCall = mockContext.fillRect.mock.calls.find(call => call[1] > 0);
-      expect(pathFallbackCall).toBeUndefined();
+    it('should call core drawing methods in order', () => {
+      renderer.render(mockGameState, 0.016);
+      expect(renderer.clear).toHaveBeenCalledOnce();
+      // Check calls inside the save/restore block
+      expect(renderer.drawWorldBackground).toHaveBeenCalledOnce();
+      expect(renderer.drawPath).toHaveBeenCalledOnce();
+      expect(renderer.drawGrid).toHaveBeenCalledOnce();
+      expect(renderer.drawObstacles).toHaveBeenCalledWith(mockGameState.obstacles);
+      expect(renderer.drawAll).toHaveBeenCalledWith(mockGameState.enemies);
+      expect(renderer.drawAll).toHaveBeenCalledWith(mockGameState.towers);
+      expect(renderer.drawAll).toHaveBeenCalledWith(mockGameState.projectiles);
+      expect(renderer.drawEntity).toHaveBeenCalledWith(mockGameState.hero);
     });
 
-    it('should draw fallback path when assets are missing', () => {
-      mockAssetLoaderInstance.get.mockImplementation((key) => {
-        if (key === 'BACKGROUND_TILE') return { width: 32, height: 32 };
-        return null;
+     it('should call drawDebugOverlay only when debug is true', () => {
+          vi.spyOn(renderer, 'drawDebugOverlay');
+          mockGameState.debug = true;
+          renderer.render(mockGameState, 0.016);
+          expect(renderer.drawDebugOverlay).toHaveBeenCalled();
+          
+          renderer.drawDebugOverlay.mockClear();
+          mockGameState.debug = false;
+          renderer.render(mockGameState, 0.016);
+          expect(renderer.drawDebugOverlay).not.toHaveBeenCalled();
       });
-      renderer.drawBackground();
-      const pathFallbackCall = mockContext.fillRect.mock.calls.find(call => call[1] > 0);
-      expect(pathFallbackCall).toBeDefined();
-      expect(mockContext.fillStyle).toBe('#3a3a3a');
-    });
   });
 
   describe('drawing methods', () => {

@@ -65,6 +65,29 @@ export class GridManager {
     }
 
     /**
+     * Updates the grid based on a list of static obstacles.
+     * @param {Array<Object>} obstacles - Array of obstacle objects { x, y, width, height }.
+     */
+    updateGridWithObstacles(obstacles) {
+        if (!Array.isArray(obstacles)) return;
+
+        obstacles.forEach(obstacle => {
+            // Calculate the grid cell range covered by the obstacle
+            const startCol = Math.floor(obstacle.x / GRID_CONFIG.CELL_SIZE);
+            const endCol = Math.ceil((obstacle.x + obstacle.width) / GRID_CONFIG.CELL_SIZE);
+            const startRow = Math.floor(obstacle.y / GRID_CONFIG.CELL_SIZE);
+            const endRow = Math.ceil((obstacle.y + obstacle.height) / GRID_CONFIG.CELL_SIZE);
+
+            for (let y = startRow; y < endRow; y++) {
+                for (let x = startCol; x < endCol; x++) {
+                    // Mark the cell as blocked terrain
+                    this.setCellTerrain(x, y, TERRAIN_TYPES.BLOCKED);
+                }
+            }
+        });
+    }
+
+    /**
      * Checks if a grid cell is valid for movement (walkable terrain, not occupied).
      * @param {number} gridX - The grid column index.
      * @param {number} gridY - The grid row index.

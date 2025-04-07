@@ -1,4 +1,5 @@
 import { Enemy } from '../entities/Enemy.js';
+import { EnemyConfig } from '../config/EnemyConfig.js';
 import { Debug } from '../utils/Debug.js';
 import { WaveConfig } from '../config/WaveConfig.js';
 
@@ -7,8 +8,10 @@ import { WaveConfig } from '../config/WaveConfig.js';
  */
 export class EnemyManager {
     constructor() {
-        /** @type {Enemy[]} */
-        this.enemies = [];
+        /** @type {Map<string, Enemy>} */
+        this.enemies = new Map();
+        /** @type {number} */
+        this.idCounter = 0;
         /** @type {Object|null} */
         this.currentWave = null;
     }
@@ -19,8 +22,37 @@ export class EnemyManager {
      * @returns {Enemy} The created enemy
      */
     addEnemy(data) {
-        const enemy = new Enemy(data);
-        this.enemies.push(enemy);
+        // Get configuration for the enemy type
+        const config = EnemyConfig[data.type] || EnemyConfig.basic; // Fallback to basic
+        if (!config) {
+            Debug.warn(`Enemy config not found for type: ${data.type}. Using basic.`);
+        }
+
+        // Merge provided data with config defaults
+        const enemyData = {
+            id: `enemy_${this.idCounter++}`,
+            x: data.x !== undefined ? data.x : -50, // Default spawn X off-screen left
+            y: data.y !== undefined ? data.y : 300, // Default spawn Y centered
+            width: data.width || config.width || 32,
+            height: data.height || config.height || 32,
+            health: data.health || config.health || 100,
+            speed: data.speed || config.speed || 1,
+            value: data.value || config.value || 10,
+            type: data.type || 'basic',
+            gridManager: data.gridManager, // Expect gridManager to be passed in
+            pathfinder: data.pathfinder,   // Expect pathfinder to be passed in
+            goalX: data.goalX !== undefined ? data.goalX : 800, // Default goal: right edge
+            goalY: data.goalY !== undefined ? data.goalY : 300, // Default goal: Y-center
+        };
+
+        if (!enemyData.gridManager || !enemyData.pathfinder) {
+            Debug.error('EnemyManager.addEnemy is missing gridManager or pathfinder in passed data!');
+            return null;
+        }
+
+        const enemy = new Enemy(enemyData);
+        this.enemies.set(enemy.id, enemy);
+        Debug.log('Added enemy:', enemy.id, 'Type:', enemy.type);
         return enemy;
     }
 
@@ -29,7 +61,12 @@ export class EnemyManager {
      * @param {string} id - The ID of the enemy to remove
      */
     removeEnemy(id) {
-        this.enemies = this.enemies.filter(enemy => enemy.id !== id);
+        if (this.enemies.has(id)) {
+            this.enemies.delete(id);
+            Debug.log('Removed enemy:', id);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -66,11 +103,11 @@ export class EnemyManager {
             }
             
             // Check if wave is complete
-            Debug.log(`Checking wave completion: spawned=${this.currentWave.enemiesSpawned}, total=${waveConfig.totalEnemies}, enemiesLeft=${this.enemies.length}`);
+            Debug.log(`Checking wave completion: spawned=${this.currentWave.enemiesSpawned}, total=${waveConfig.totalEnemies}, enemiesLeft=${this.enemies.size}`);
             if (this.currentWave.enemiesSpawned >= waveConfig.totalEnemies && 
-                this.enemies.length === 0) {
+                this.enemies.size === 0) {
                 Debug.log(`Wave completion condition MET.`);
-                Debug.log(`Wave ${this.currentWaveNumber} completed.`);
+                Debug.log(`Wave ${this.currentWave.number} completed.`);
                 this.currentWave = null;
                 gameState.waveInProgress = false;
                 gameState.canStartWave = true;
@@ -80,14 +117,12 @@ export class EnemyManager {
         // Update all enemies
         this.enemies.forEach(enemy => {
             enemy.update(deltaTime, gameState);
-            
-            // Remove dead enemies
             if (!enemy.isAlive()) {
-                this.removeEnemy(enemy.id);
-                // Add gold reward
-                const enemyConfig = WaveConfig[gameState.currentWave].enemyTypes[enemy.type] || 
-                                  WaveConfig[gameState.currentWave].enemyTypes.basic;
-                gameState.gold += enemyConfig.value;
+                // Remove dead enemies during update
+                // const enemyConfig = WaveConfig[gameState.currentWave].enemyTypes[enemy.type] || 
+                //                   WaveConfig[gameState.currentWave].enemyTypes.basic;
+                // gameState.gold += enemyConfig.value; // Gold reward logic removed - belongs in Game.js
+                this.removeEnemy(enemy.id); 
             }
         });
     }
@@ -110,7 +145,7 @@ export class EnemyManager {
             path: waveConfig.path
         });
 
-        this.enemies.push(enemy);
+        this.enemies.set(enemy.id, enemy);
     }
 
     /**
@@ -135,9 +170,9 @@ export class EnemyManager {
      * @param {CanvasRenderingContext2D} ctx - Canvas context
      */
     drawAll(ctx) {
-        for (const enemy of this.enemies) {
+        this.enemies.forEach(enemy => {
             enemy.draw(ctx);
-        }
+        });
     }
 
     /**
@@ -145,7 +180,7 @@ export class EnemyManager {
      * @returns {Enemy[]} Array of all enemies
      */
     getAll() {
-        return this.enemies;
+        return Array.from(this.enemies.values());
     }
 
     /**
@@ -154,7 +189,7 @@ export class EnemyManager {
      * @returns {Enemy|null} The enemy or null if not found
      */
     getById(id) {
-        return this.enemies.find(enemy => enemy.id === id) || null;
+        return this.enemies.get(id);
     }
 
     /**
@@ -162,7 +197,7 @@ export class EnemyManager {
      * @returns {Array} Array of enemy states
      */
     getState() {
-        return this.enemies.map(enemy => enemy.getState());
+        return this.getAll().map(enemy => enemy.getState());
     }
 
     /**
@@ -171,16 +206,21 @@ export class EnemyManager {
      */
     syncState(states) {
         this.clear();
-        states.forEach(state => {
-            this.addEnemy(state);
-        });
+        if (Array.isArray(states)) {
+            states.forEach(state => {
+                // Need to potentially pass gridManager/pathfinder here too if loading state
+                const enemy = new Enemy({ ...state /*, gridManager, pathfinder */ }); 
+                this.enemies.set(enemy.id, enemy);
+            });
+        }
     }
 
     /**
      * Clear all enemies
      */
     clear() {
-        this.enemies = [];
+        this.enemies.clear();
+        this.idCounter = 0;
         Debug.log('EnemyManager cleared');
     }
 
