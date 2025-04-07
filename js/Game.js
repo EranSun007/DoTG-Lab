@@ -31,6 +31,18 @@ export class Game {
         this.uiManager = uiManager;
         this.debugMenu = new DebugMenu(this);
         
+        // Test obstacles
+        this.obstacles = [
+            // Walls
+            { x: 100, y: 100, width: 50, height: 200, color: 'gray', type: 'wall' },
+            { x: 600, y: 300, width: 200, height: 50, color: 'darkgray', type: 'wall' },
+            // Water
+            { x: 300, y: 400, width: 150, height: 100, color: 'blue', type: 'water' },
+            // Trees
+            { x: 500, y: 100, width: 60, height: 60, color: 'green', type: 'tree' },
+            { x: 520, y: 170, width: 40, height: 40, color: 'darkgreen', type: 'tree' },
+        ];
+        
         // Initialize hero at center of canvas
         this.hero = new Hero({
             x: canvas.width / 2 - 24,
@@ -469,36 +481,109 @@ export class Game {
     }
 
     /**
-     * Handle hero movement with delta time
-     * @param {number} deltaTime - Time since last update in seconds
+     * Check for collision between two rectangular objects
+     * @param {object} rect1 - { x, y, width, height }
+     * @param {object} rect2 - { x, y, width, height }
+     * @returns {boolean} True if colliding, false otherwise
+     */
+    isColliding(rect1, rect2) {
+        if (!rect1 || !rect2) return false;
+        return (
+            rect1.x <= rect2.x + rect2.width &&
+            rect1.x + rect1.width >= rect2.x &&
+            rect1.y <= rect2.y + rect2.height &&
+            rect1.y + rect1.height >= rect2.y
+        );
+    }
+
+    /**
+     * Handle hero movement based on input, with collision detection
+     * @param {number} deltaTime - Time since last frame
      */
     handleHeroMovement(deltaTime) {
-        // Get input state
-        const left = this.inputManager.isKeyDown('ArrowLeft') || this.inputManager.isKeyDown('a');
-        const right = this.inputManager.isKeyDown('ArrowRight') || this.inputManager.isKeyDown('d');
-        const up = this.inputManager.isKeyDown('ArrowUp') || this.inputManager.isKeyDown('w');
-        const down = this.inputManager.isKeyDown('ArrowDown') || this.inputManager.isKeyDown('s');
+        if (!this.hero) return;
 
-        // Only process movement if hero is not currently moving
-        if (!this.hero.moving) {
-            // Get current grid position
-            const currentGridX = Math.floor(this.hero.x / GRID_CONFIG.CELL_SIZE);
-            const currentGridY = Math.floor(this.hero.y / GRID_CONFIG.CELL_SIZE);
-            
-            // Calculate target grid position
-            let targetGridX = currentGridX;
-            let targetGridY = currentGridY;
+        let dx = 0;
+        let dy = 0;
 
-            if (left) targetGridX--;
-            if (right) targetGridX++;
-            if (up) targetGridY--;
-            if (down) targetGridY++;
+        // Calculate movement delta based on input
+        if (this.inputManager.isKeyDown('ArrowUp') || this.inputManager.isKeyDown('KeyW')) dy -= 1;
+        if (this.inputManager.isKeyDown('ArrowDown') || this.inputManager.isKeyDown('KeyS')) dy += 1;
+        if (this.inputManager.isKeyDown('ArrowLeft') || this.inputManager.isKeyDown('KeyA')) dx -= 1;
+        if (this.inputManager.isKeyDown('ArrowRight') || this.inputManager.isKeyDown('KeyD')) dx += 1;
 
-            // Only move if position changed
-            if (targetGridX !== currentGridX || targetGridY !== currentGridY) {
-                this.hero.moveToCell(targetGridX, targetGridY);
+        if (dx === 0 && dy === 0) return;
+
+        // Normalize diagonal movement
+        if (dx !== 0 && dy !== 0) {
+            const length = Math.sqrt(dx * dx + dy * dy);
+            dx = (dx / length);
+            dy = (dy / length);
+        }
+
+        const moveSpeed = this.hero.speed * this.speedMultiplier;
+        const moveX = dx * moveSpeed * deltaTime;
+        const moveY = dy * moveSpeed * deltaTime;
+
+        // --- Collision Detection ---
+        const currentBounds = this.hero.getBounds();
+        let targetX = currentBounds.x + moveX;
+        let targetY = currentBounds.y + moveY;
+
+        // Keep track of the final allowed position
+        let finalX = targetX;
+        let finalY = targetY;
+
+        // Create potential bounds based on the full target movement
+        const potentialBounds = { ...currentBounds, x: targetX, y: targetY };
+
+        // Check against all collidable objects (obstacles and towers)
+        const collidables = [...this.obstacles, ...this.towerManager.getAll()];
+
+        for (const obstacle of collidables) {
+            const obsBounds = obstacle.getBounds ? obstacle.getBounds() : obstacle; // Handle towers/obstacles
+            if (!obsBounds) continue;
+
+            // Check collision with the fully moved potential bounds
+            if (this.isColliding(potentialBounds, obsBounds)) {
+                // Collision detected! Now check X and Y separately to allow sliding.
+
+                // Check X-axis collision ONLY
+                const potentialBoundsXOnly = { ...currentBounds, x: targetX };
+                if (this.isColliding(potentialBoundsXOnly, obsBounds)) {
+                    // Collision on X. Adjust finalX to stop at the obstacle edge.
+                    if (moveX > 0) { // Moving right
+                        finalX = obsBounds.x - currentBounds.width;
+                    } else if (moveX < 0) { // Moving left
+                        finalX = obsBounds.x + obsBounds.width;
+                    }
+                    // Update potentialBounds for the Y check with the adjusted X
+                    potentialBounds.x = finalX;
+                }
+
+                // Check Y-axis collision ONLY (using ORIGINAL currentBounds.x)
+                const potentialBoundsYOnly = { ...currentBounds, y: targetY }; // Use currentBounds.x, NOT potentialBounds.x
+                 if (this.isColliding(potentialBoundsYOnly, obsBounds)) {
+                     // Collision on Y. Adjust finalY to stop at the obstacle edge.
+                     if (moveY > 0) { // Moving down
+                         finalY = obsBounds.y - currentBounds.height;
+                     } else if (moveY < 0) { // Moving up
+                         finalY = obsBounds.y + obsBounds.height;
+                     }
+                      // Update potentialBounds y for subsequent checks in this loop? Not strictly necessary here
+                      // as we apply finalX/finalY *after* the loop, but might be safer if logic changes.
+                       potentialBounds.y = finalY;
+                 }
             }
         }
+
+        // Apply canvas boundary checks AFTER collision adjustments
+        finalX = Math.max(0, Math.min(finalX, this.canvas.width - currentBounds.width));
+        finalY = Math.max(0, Math.min(finalY, this.canvas.height - currentBounds.height));
+
+        // Apply the final calculated position
+        this.hero.x = finalX;
+        this.hero.y = finalY;
     }
 
     /**
@@ -513,6 +598,12 @@ export class Game {
         
         // Draw grid
         this.gridManager.draw(this.ctx);
+        
+        // Draw obstacles
+        for (const obstacle of this.obstacles) {
+            this.ctx.fillStyle = obstacle.color;
+            this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        }
         
         // Draw all game entities
         this.renderer.drawAll(this.enemyManager.getAll());

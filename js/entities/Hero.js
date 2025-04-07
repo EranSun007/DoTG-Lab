@@ -38,6 +38,19 @@ export class Hero extends Entity {
     }
 
     /**
+     * Get the bounding box of the hero.
+     * @returns {{x: number, y: number, width: number, height: number}}
+     */
+    getBounds() {
+        return {
+            x: this.x,
+            y: this.y,
+            width: this.width,
+            height: this.height
+        };
+    }
+
+    /**
      * @param {number} deltaTime
      * @param {Object} gameState - Current game state containing enemies, towers, and hero
      */
