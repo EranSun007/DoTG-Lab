@@ -60,13 +60,12 @@ export class Tower extends Entity {
     }
 
     attack(target, projectileManager) {
+        if (this.cooldown > 0) return;
+        
         if (!target) return;
         
         // If no ProjectileManager is provided, do direct damage
         if (!projectileManager) {
-            // Check cooldown for direct damage
-            if (this.cooldown > 0) return;
-            
             target.health -= this.damage;
             this.lastAttackTime = Date.now();
             this.cooldown = 1000 / this.attackSpeed; // Convert to milliseconds

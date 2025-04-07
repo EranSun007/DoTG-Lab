@@ -66,8 +66,11 @@ export class EnemyManager {
             }
             
             // Check if wave is complete
+            Debug.log(`Checking wave completion: spawned=${this.currentWave.enemiesSpawned}, total=${waveConfig.totalEnemies}, enemiesLeft=${this.enemies.length}`);
             if (this.currentWave.enemiesSpawned >= waveConfig.totalEnemies && 
                 this.enemies.length === 0) {
+                Debug.log(`Wave completion condition MET.`);
+                Debug.log(`Wave ${this.currentWaveNumber} completed.`);
                 this.currentWave = null;
                 gameState.waveInProgress = false;
                 gameState.canStartWave = true;
