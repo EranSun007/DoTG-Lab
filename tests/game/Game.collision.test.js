@@ -4,6 +4,7 @@ import { Hero } from '../../js/entities/Hero.js';
 import { Tower } from '../../js/entities/Tower.js';
 import { InputManager } from '../../js/managers/InputManager.js';
 import { TowerConfig } from '../../js/config/TowerConfig.js'; // Needed for tower creation
+import { GRID_CONFIG } from '../../js/config/GridConfig.js'; // Import for grid calculations
 
 // Mock dependencies
 const mockCanvas = {
@@ -62,241 +63,237 @@ vi.mock('../../js/utils/Debug.js', () => ({
 }));
 
 
-describe('Game Collision Detection', () => {
+describe('Game Logic', () => { // Renamed top-level describe
     let game;
     let mockInputManager;
 
     beforeEach(() => {
-        // Reset mocks if needed (might not be necessary with vi.fn() default behavior)
         vi.clearAllMocks();
 
         game = new Game(mockCanvas, mockUIManager);
 
-        // Create a mock InputManager instance
-        // We need to mock the internal state/methods used by handleHeroMovement
+        // Mock InputManager
         mockInputManager = {
             _keysDown: new Set(),
-            _keysJustPressed: new Set(),
             isKeyDown: vi.fn((key) => mockInputManager._keysDown.has(key)),
-            getMousePosition: vi.fn(() => ({ x: 0, y: 0 })), // Default mouse pos
-            update: vi.fn(), // Needs to exist but does nothing in mock
+            getMousePosition: vi.fn(() => ({ x: 0, y: 0 })),
+            update: vi.fn(),
         };
-        game.inputManager = mockInputManager; // Replace the real InputManager
+        game.inputManager = mockInputManager;
 
-        // Set a default hero position for tests
-        game.hero.x = 100;
-        game.hero.y = 100;
-        game.hero.speed = 100; // Use a predictable speed (pixels per second)
-        game.speedMultiplier = 1; // Ensure default speed
+        // Mock GridManager methods used by handleHeroMovement
+        game.gridManager = {
+             // ... (keep other GridManager methods if needed by other parts of Game)
+             cells: [], // Add basic structure if needed
+             initializeGrid: vi.fn(), // Mock initialization
+             getCellFromScreenPosition: vi.fn((x, y) => {
+                const gridX = Math.floor(x / GRID_CONFIG.CELL_SIZE);
+                const gridY = Math.floor(y / GRID_CONFIG.CELL_SIZE);
+                 if (gridX >= 0 && gridX < GRID_CONFIG.GRID_WIDTH && gridY >= 0 && gridY < GRID_CONFIG.GRID_HEIGHT) {
+                    return { x: gridX, y: gridY }; // Return mock cell data
+                 }
+                 return null;
+             }),
+             getScreenPositionFromCell: vi.fn(cell => ({ x: cell.x * GRID_CONFIG.CELL_SIZE, y: cell.y * GRID_CONFIG.CELL_SIZE })),
+             isValidCell: vi.fn((x, y) => x >= 0 && x < GRID_CONFIG.GRID_WIDTH && y >= 0 && y < GRID_CONFIG.GRID_HEIGHT),
+             isCellWalkable: vi.fn(() => true), // Default to walkable
+             setCellTerrain: vi.fn(),
+             setCellOccupied: vi.fn(),
+             clearCell: vi.fn(),
+             updateHoveredCell: vi.fn(),
+             draw: vi.fn(),
+        };
 
-        // Clear default obstacles and towers for controlled testing
+        // Mock Hero methods related to movement state
+        // Spy on moveToCell to check if it's called
+        vi.spyOn(game.hero, 'moveToCell');
+        // Allow setting initial state
+        game.hero.moving = false;
+        game.hero.x = 3 * GRID_CONFIG.CELL_SIZE + GRID_CONFIG.CELL_SIZE / 2; // Start roughly at cell [3, 3]
+        game.hero.y = 3 * GRID_CONFIG.CELL_SIZE + GRID_CONFIG.CELL_SIZE / 2;
+        game.hero.targetX = game.hero.x;
+        game.hero.targetY = game.hero.y;
+
+
+        // Clear default obstacles for controlled testing
         game.obstacles = [];
-        game.towerManager.towers.clear();
     });
 
-    // --- isColliding Tests ---
+    // --- isColliding Tests (Keep as is) ---
     describe('isColliding Utility', () => {
         it('should return true for overlapping rectangles', () => {
-            const rect1 = { x: 10, y: 10, width: 50, height: 50 };
-            const rect2 = { x: 40, y: 40, width: 50, height: 50 };
-            expect(game.isColliding(rect1, rect2)).toBe(true);
-        });
-
-        it('should return true for touching rectangles', () => {
-            const rect1 = { x: 10, y: 10, width: 50, height: 50 };
-            const rect2 = { x: 60, y: 10, width: 50, height: 50 }; // Touching on right edge
-            expect(game.isColliding(rect1, rect2)).toBe(true);
-        });
-
-         it('should return true when one rectangle is inside another', () => {
-            const rect1 = { x: 10, y: 10, width: 100, height: 100 };
-            const rect2 = { x: 20, y: 20, width: 50, height: 50 };
-            expect(game.isColliding(rect1, rect2)).toBe(true);
-            expect(game.isColliding(rect2, rect1)).toBe(true);
-        });
-
-        it('should return false for non-overlapping rectangles', () => {
-            const rect1 = { x: 10, y: 10, width: 50, height: 50 };
-            const rect2 = { x: 70, y: 70, width: 50, height: 50 };
-            expect(game.isColliding(rect1, rect2)).toBe(false);
-        });
-
-        it('should return false if one rect is null or undefined', () => {
              const rect1 = { x: 10, y: 10, width: 50, height: 50 };
-             expect(game.isColliding(rect1, null)).toBe(false);
-             expect(game.isColliding(null, rect1)).toBe(false);
-             expect(game.isColliding(undefined, rect1)).toBe(false);
-        });
-    });
-
-    // --- handleHeroMovement Tests ---
-    describe('handleHeroMovement Collision', () => {
-        const fixedDeltaTime = 0.1; // 100ms delta time for predictable movement
-
-        it('should stop hero at left canvas boundary', () => {
-            game.hero.x = 10;
-            game.hero.y = 100;
-            mockInputManager._keysDown.add('ArrowLeft');
-            game.handleHeroMovement(fixedDeltaTime);
-            // Expected movement = speed * deltaTime = 100 * 0.1 = 10
-            // Hero starts at 10, wants to move -10 to 0. Should stop exactly at 0.
-            expect(game.hero.x).toBe(0);
-            expect(game.hero.y).toBe(100); // Y should not change
-        });
-
-        it('should stop hero at right canvas boundary', () => {
-            game.hero.x = mockCanvas.width - game.hero.width - 10; // 10px from right edge
-            game.hero.y = 100;
-             mockInputManager._keysDown.add('ArrowRight');
-             game.handleHeroMovement(fixedDeltaTime);
-             // Expected move = 10. Wants to move to right_edge - 10 + 10 = right_edge
-             // Should stop exactly at right_edge - width
-             expect(game.hero.x).toBe(mockCanvas.width - game.hero.width);
-             expect(game.hero.y).toBe(100);
-        });
-
-        it('should stop hero at top canvas boundary', () => {
-            game.hero.x = 100;
-            game.hero.y = 10;
-            mockInputManager._keysDown.add('ArrowUp');
-             game.handleHeroMovement(fixedDeltaTime);
-             expect(game.hero.x).toBe(100);
-             expect(game.hero.y).toBe(0);
-        });
-
-         it('should stop hero at bottom canvas boundary', () => {
-            game.hero.x = 100;
-            game.hero.y = mockCanvas.height - game.hero.height - 10; // 10px from bottom edge
-             mockInputManager._keysDown.add('ArrowDown');
-             game.handleHeroMovement(fixedDeltaTime);
-             expect(game.hero.x).toBe(100);
-             expect(game.hero.y).toBe(mockCanvas.height - game.hero.height);
+             const rect2 = { x: 40, y: 40, width: 50, height: 50 };
+             expect(game.isColliding(rect1, rect2)).toBe(true);
          });
 
-        it('should stop hero when moving right into a static obstacle', () => {
-            game.hero.x = 100;
-            game.hero.y = 100;
-            const obstacle = { x: 150, y: 90, width: 50, height: 70 }; // Obstacle to the right
-            game.obstacles.push(obstacle);
+         it('should return true for touching rectangles', () => {
+             const rect1 = { x: 10, y: 10, width: 50, height: 50 };
+             const rect2 = { x: 60, y: 10, width: 50, height: 50 }; // Touching on right edge
+             expect(game.isColliding(rect1, rect2)).toBe(true);
+         });
+
+          it('should return true when one rectangle is inside another', () => {
+             const rect1 = { x: 10, y: 10, width: 100, height: 100 };
+             const rect2 = { x: 20, y: 20, width: 50, height: 50 };
+             expect(game.isColliding(rect1, rect2)).toBe(true);
+             expect(game.isColliding(rect2, rect1)).toBe(true);
+         });
+
+         it('should return false for non-overlapping rectangles', () => {
+             const rect1 = { x: 10, y: 10, width: 50, height: 50 };
+             const rect2 = { x: 70, y: 70, width: 50, height: 50 };
+             expect(game.isColliding(rect1, rect2)).toBe(false);
+         });
+
+         it('should return false if one rect is null or undefined', () => {
+              const rect1 = { x: 10, y: 10, width: 50, height: 50 };
+              expect(game.isColliding(rect1, null)).toBe(false);
+              expect(game.isColliding(null, rect1)).toBe(false);
+              expect(game.isColliding(undefined, rect1)).toBe(false);
+         });
+    });
+
+    // --- Grid Movement Tests ---
+    describe('handleHeroMovement (Grid-Based)', () => {
+        const deltaTime = 0.1; // deltaTime isn't directly used for initiating move, but pass it
+        let initialGridX, initialGridY;
+
+        beforeEach(() => {
+            // Recalculate initial grid cell based on potentially modified hero position
+            initialGridX = Math.floor(game.hero.x / GRID_CONFIG.CELL_SIZE);
+            initialGridY = Math.floor(game.hero.y / GRID_CONFIG.CELL_SIZE);
+            game.hero.moving = false; // Ensure hero starts stationary
+            game.hero.moveToCell.mockClear(); // Clear spy calls
+        });
+
+        it('should not call moveToCell if no input is pressed', () => {
+            game.handleHeroMovement(deltaTime);
+            expect(game.hero.moveToCell).not.toHaveBeenCalled();
+        });
+
+        it('should not call moveToCell if hero is already moving', () => {
+            game.hero.moving = true;
             mockInputManager._keysDown.add('ArrowRight');
-            game.handleHeroMovement(fixedDeltaTime);
-            // Expected move = 10. Hero width = 48.
-            // Hero wants to move from 100 to 110. Obstacle starts at 150.
-            // Collision happens when hero.x + hero.width > obstacle.x
-            // In this case, 100 + 48 = 148 initially.
-            // Potential X = 110. 110 + 48 = 158. This IS > 150. Collision.
-            // Expected final position: obstacle.x - hero.width = 150 - 48 = 102
-            expect(game.hero.x).toBeCloseTo(obstacle.x - game.hero.width); // Use toBeCloseTo for potential float issues
-            expect(game.hero.y).toBe(100); // Y should not change
+            game.handleHeroMovement(deltaTime);
+            expect(game.hero.moveToCell).not.toHaveBeenCalled();
         });
 
-         it('should stop hero when moving left into a static obstacle', () => {
-            const obstacle = { x: 50, y: 90, width: 50, height: 70 }; // Obstacle to the left
-            game.obstacles.push(obstacle);
-             game.hero.x = obstacle.x + obstacle.width + 10; // Start 10px right of obstacle
-             game.hero.y = 100;
-             mockInputManager._keysDown.add('ArrowLeft');
-             game.handleHeroMovement(fixedDeltaTime);
-            // Expected move = -10. Obstacle ends at 50+50=100. Hero starts at 110.
-            // Potential X = 100. Collision happens when hero.x < obstacle.x + obstacle.width
-            // 100 < 100 is false, but the logic adjusts to touch exactly.
-             // Expected final position: obstacle.x + obstacle.width = 50 + 50 = 100
-             expect(game.hero.x).toBeCloseTo(obstacle.x + obstacle.width);
-             expect(game.hero.y).toBe(100);
-         });
+        it('should call moveToCell with correct target when moving right into walkable cell', () => {
+            const targetX = initialGridX + 1;
+            const targetY = initialGridY;
+            game.gridManager.isCellWalkable.mockReturnValue(true); // Ensure target is walkable
+            mockInputManager._keysDown.add('ArrowRight');
 
-         it('should stop hero when moving down into a static obstacle', () => {
-            game.hero.x = 100;
-            game.hero.y = 100;
-            const obstacle = { x: 90, y: 150, width: 70, height: 50 }; // Obstacle below
-            game.obstacles.push(obstacle);
+            game.handleHeroMovement(deltaTime);
+
+            expect(game.gridManager.isCellWalkable).toHaveBeenCalledWith(targetX, targetY);
+            expect(game.hero.moveToCell).toHaveBeenCalledTimes(1);
+            expect(game.hero.moveToCell).toHaveBeenCalledWith(targetX, targetY);
+        });
+
+        it('should call moveToCell with correct target when moving left into walkable cell', () => {
+            const targetX = initialGridX - 1;
+            const targetY = initialGridY;
+            game.gridManager.isCellWalkable.mockReturnValue(true);
+            mockInputManager._keysDown.add('ArrowLeft');
+            game.handleHeroMovement(deltaTime);
+            expect(game.gridManager.isCellWalkable).toHaveBeenCalledWith(targetX, targetY);
+            expect(game.hero.moveToCell).toHaveBeenCalledWith(targetX, targetY);
+        });
+
+         it('should call moveToCell with correct target when moving up into walkable cell', () => {
+            const targetX = initialGridX;
+            const targetY = initialGridY - 1;
+            game.gridManager.isCellWalkable.mockReturnValue(true);
+            mockInputManager._keysDown.add('ArrowUp');
+            game.handleHeroMovement(deltaTime);
+            expect(game.gridManager.isCellWalkable).toHaveBeenCalledWith(targetX, targetY);
+            expect(game.hero.moveToCell).toHaveBeenCalledWith(targetX, targetY);
+        });
+
+         it('should call moveToCell with correct target when moving down into walkable cell', () => {
+            const targetX = initialGridX;
+            const targetY = initialGridY + 1;
+            game.gridManager.isCellWalkable.mockReturnValue(true);
             mockInputManager._keysDown.add('ArrowDown');
-            game.handleHeroMovement(fixedDeltaTime);
-            // Expected move = 10. Hero height = 48.
-            // Potential Y = 110. Collision: 110 + 48 > 150. Yes (158 > 150).
-            // Expected final Y: obstacle.y - hero.height = 150 - 48 = 102
-            expect(game.hero.x).toBe(100);
-            expect(game.hero.y).toBeCloseTo(obstacle.y - game.hero.height);
-         });
+            game.handleHeroMovement(deltaTime);
+            expect(game.gridManager.isCellWalkable).toHaveBeenCalledWith(targetX, targetY);
+            expect(game.hero.moveToCell).toHaveBeenCalledWith(targetX, targetY);
+        });
 
-          it('should stop hero when moving up into a static obstacle', () => {
-            const obstacle = { x: 90, y: 50, width: 70, height: 50 }; // Obstacle above
-            game.obstacles.push(obstacle);
-             game.hero.x = 100;
-             game.hero.y = obstacle.y + obstacle.height + 10; // Start 10px below obstacle
-             mockInputManager._keysDown.add('ArrowUp');
-             game.handleHeroMovement(fixedDeltaTime);
-             // Expected move = -10. Obstacle ends at 50+50=100. Hero starts at 110.
-             // Potential Y = 100. Collision: 100 < 100 is false, but adjusted to touch.
-             // Expected final Y: obstacle.y + obstacle.height = 50 + 50 = 100
-             expect(game.hero.x).toBe(100);
-             expect(game.hero.y).toBeCloseTo(obstacle.y + obstacle.height);
-          });
+        it('should NOT call moveToCell if target cell is blocked by GridManager', () => {
+            const targetX = initialGridX + 1;
+            const targetY = initialGridY;
+            game.gridManager.isCellWalkable.mockReturnValue(false); // Mock cell as unwalkable
+            mockInputManager._keysDown.add('ArrowRight');
 
-          it('should stop hero when moving right into a tower', () => {
-             game.hero.x = 100;
-             game.hero.y = 100;
-             // TowerConfig needed for tower creation even if properties overridden
-             const towerData = { ...TowerConfig.ranged, x: 150, y: 90, width: 40, height: 40 };
-             const tower = game.towerManager.addEntity(towerData);
-             mockInputManager._keysDown.add('ArrowRight');
-             game.handleHeroMovement(fixedDeltaTime);
-             // Expected move = 10. Hero width = 48. Tower starts at 150.
-             // Potential X = 110. Collision: 110 + 48 > 150. Yes.
-             // Expected final X: tower.x - hero.width = 150 - 48 = 102
-             expect(game.hero.x).toBeCloseTo(tower.x - game.hero.width);
-             expect(game.hero.y).toBe(100);
-         });
+            game.handleHeroMovement(deltaTime);
 
-        // --- Sliding Tests ---
-         it('should slide down along a vertical wall when moving right and down', () => {
-            game.hero.x = 100;
-            game.hero.y = 100;
-             // Tall vertical obstacle to the right
-             const obstacle = { x: 150, y: 50, width: 20, height: 150 };
-             game.obstacles.push(obstacle);
-             mockInputManager._keysDown.add('ArrowRight');
-             mockInputManager._keysDown.add('ArrowDown');
-             game.handleHeroMovement(fixedDeltaTime);
+            expect(game.gridManager.isCellWalkable).toHaveBeenCalledWith(targetX, targetY);
+            expect(game.hero.moveToCell).not.toHaveBeenCalled();
+        });
 
-            // Expected normalized move amount per axis (approx)
-            const moveAmount = game.hero.speed * fixedDeltaTime; // 100 * 0.1 = 10
-            const diagMove = moveAmount / Math.sqrt(2); // ~7.07
+        it('should NOT call moveToCell if target cell is blocked by a static obstacle', () => {
+            const targetX = initialGridX + 1;
+            const targetY = initialGridY;
+            const targetCellScreenX = targetX * GRID_CONFIG.CELL_SIZE;
+            const targetCellScreenY = targetY * GRID_CONFIG.CELL_SIZE;
 
-             // X movement should be blocked by the wall at obstacle.x - hero.width = 150 - 48 = 102
-             expect(game.hero.x).toBeCloseTo(obstacle.x - game.hero.width);
-             // Y movement should be allowed (no collision on Y axis initially)
-             // Initial Y = 100. Potential Y = 100 + diagMove = ~107.07
-             expect(game.hero.y).toBeCloseTo(100 + diagMove);
-         });
+            // Add an obstacle that overlaps the target cell
+            game.obstacles.push({
+                x: targetCellScreenX + 5, // Slightly inside the target cell
+                y: targetCellScreenY + 5,
+                width: GRID_CONFIG.CELL_SIZE, height: GRID_CONFIG.CELL_SIZE,
+                type: 'wall'
+            });
 
-          it('should slide right along a horizontal wall when moving right and down', () => {
-            game.hero.x = 100;
-            game.hero.y = 100;
-              // Wide horizontal obstacle below
-              const obstacle = { x: 50, y: 150, width: 150, height: 20 };
-              game.obstacles.push(obstacle);
-              mockInputManager._keysDown.add('ArrowRight');
-              mockInputManager._keysDown.add('ArrowDown');
-              game.handleHeroMovement(fixedDeltaTime);
+            game.gridManager.isCellWalkable.mockReturnValue(true); // Grid says it's walkable
+            mockInputManager._keysDown.add('ArrowRight');
 
-             const moveAmount = game.hero.speed * fixedDeltaTime;
-             const diagMove = moveAmount / Math.sqrt(2); // ~7.07
+            game.handleHeroMovement(deltaTime);
 
-              // X movement should be allowed
-              expect(game.hero.x).toBeCloseTo(100 + diagMove);
-              // Y movement should be blocked by the obstacle at obstacle.y - hero.height = 150 - 48 = 102
-              expect(game.hero.y).toBeCloseTo(obstacle.y - game.hero.height);
-          });
+            expect(game.gridManager.isCellWalkable).toHaveBeenCalledWith(targetX, targetY);
+            // isColliding check inside handleHeroMovement should prevent the call
+            expect(game.hero.moveToCell).not.toHaveBeenCalled();
+        });
 
+        it('should NOT call moveToCell if target cell is outside grid bounds', () => {
+            // Position hero near the left edge
+            game.hero.x = 0 + GRID_CONFIG.CELL_SIZE / 2;
+            game.hero.y = 3 * GRID_CONFIG.CELL_SIZE + GRID_CONFIG.CELL_SIZE / 2;
+            initialGridX = 0;
+            initialGridY = 3;
+            const targetX = -1; // Target outside bounds
+            const targetY = initialGridY;
+
+            // Make gridManager correctly report invalid cell as unwalkable
+            game.gridManager.isCellWalkable.mockImplementation((x, y) => {
+                if (!game.gridManager.isValidCell(x,y)) return false;
+                return true; // Other cells are walkable
+            });
+
+            mockInputManager._keysDown.add('ArrowLeft');
+            game.handleHeroMovement(deltaTime);
+
+            expect(game.gridManager.isCellWalkable).toHaveBeenCalledWith(targetX, targetY);
+            expect(game.hero.moveToCell).not.toHaveBeenCalled();
+        });
     });
 
-     // --- Hero.getBounds Test ---
-     describe('Hero.getBounds', () => {
-         it('should return the correct bounds object', () => {
-             const hero = new Hero({ x: 50, y: 60, width: 32, height: 32 });
-             const bounds = hero.getBounds();
-             expect(bounds).toEqual({ x: 50, y: 60, width: 32, height: 32 });
-         });
-     });
+    // --- Smooth AABB Movement Tests (Can be removed or kept for reference) ---
+    /*
+    describe('handleHeroMovement Collision (Smooth AABB - DEPRECATED)', () => {
+       // ... (old smooth movement tests) ...
+    });
+    */
+
+    // --- Hero.getBounds Test (Keep as is) ---
+    describe('Hero.getBounds', () => {
+        it('should return the correct bounds object', () => {
+            const hero = new Hero({ x: 50, y: 60, width: 32, height: 32 });
+            const bounds = hero.getBounds();
+            expect(bounds).toEqual({ x: 50, y: 60, width: 32, height: 32 });
+        });
+    });
 }); 

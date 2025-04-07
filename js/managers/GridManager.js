@@ -64,6 +64,35 @@ export class GridManager {
         }
     }
 
+    /**
+     * Checks if a grid cell is valid for movement (walkable terrain, not occupied).
+     * @param {number} gridX - The grid column index.
+     * @param {number} gridY - The grid row index.
+     * @returns {boolean} True if the cell is walkable, false otherwise.
+     */
+    isCellWalkable(gridX, gridY) {
+        if (!this.isValidCell(gridX, gridY)) {
+            return false; // Out of bounds
+        }
+
+        const cell = this.cells[gridY][gridX];
+
+        // Check terrain type
+        if (cell.terrainType === TERRAIN_TYPES.BLOCKED || 
+            cell.terrainType === TERRAIN_TYPES.TOWER) { // Add other non-walkable types if needed
+            return false;
+        }
+
+        // Check if occupied by an entity (redundant if terrainType is TOWER, but good practice)
+        if (cell.occupied) {
+             // Optionally allow walking if occupied by specific entity types (e.g., pickups)
+             // if (cell.entity && cell.entity.allowOverlap) return true;
+            return false;
+        }
+
+        return true; // Cell is within bounds, walkable terrain, and not occupied
+    }
+
     updateHoveredCell(screenX, screenY) {
         this.hoveredCell = this.getCellFromScreenPosition(screenX, screenY);
     }

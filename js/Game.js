@@ -497,93 +497,69 @@ export class Game {
     }
 
     /**
-     * Handle hero movement based on input, with collision detection
-     * @param {number} deltaTime - Time since last frame
+     * Handle hero movement based on input, checking for grid collisions.
+     * @param {number} deltaTime - Time since last frame (used by Hero.update for interpolation)
      */
     handleHeroMovement(deltaTime) {
-        if (!this.hero) return;
-
-        let dx = 0;
-        let dy = 0;
-
-        // Calculate movement delta based on input
-        if (this.inputManager.isKeyDown('ArrowUp') || this.inputManager.isKeyDown('KeyW')) dy -= 1;
-        if (this.inputManager.isKeyDown('ArrowDown') || this.inputManager.isKeyDown('KeyS')) dy += 1;
-        if (this.inputManager.isKeyDown('ArrowLeft') || this.inputManager.isKeyDown('KeyA')) dx -= 1;
-        if (this.inputManager.isKeyDown('ArrowRight') || this.inputManager.isKeyDown('KeyD')) dx += 1;
-
-        if (dx === 0 && dy === 0) return;
-
-        // Normalize diagonal movement
-        if (dx !== 0 && dy !== 0) {
-            const length = Math.sqrt(dx * dx + dy * dy);
-            dx = (dx / length);
-            dy = (dy / length);
+        if (!this.hero || this.hero.moving) {
+            return; // Don't process new movement if already moving to a target cell
         }
 
-        const moveSpeed = this.hero.speed * this.speedMultiplier;
-        const moveX = dx * moveSpeed * deltaTime;
-        const moveY = dy * moveSpeed * deltaTime;
+        let targetGridX = Math.floor(this.hero.x / GRID_CONFIG.CELL_SIZE);
+        let targetGridY = Math.floor(this.hero.y / GRID_CONFIG.CELL_SIZE);
+        let tryingToMove = false;
 
-        // --- Collision Detection ---
-        const currentBounds = this.hero.getBounds();
-        let targetX = currentBounds.x + moveX;
-        let targetY = currentBounds.y + moveY;
+        // Calculate target grid cell based on input
+        if (this.inputManager.isKeyDown('ArrowUp') || this.inputManager.isKeyDown('KeyW')) {
+            targetGridY -= 1;
+            tryingToMove = true;
+        }
+        if (this.inputManager.isKeyDown('ArrowDown') || this.inputManager.isKeyDown('KeyS')) {
+            targetGridY += 1;
+             tryingToMove = true;
+        }
+        if (this.inputManager.isKeyDown('ArrowLeft') || this.inputManager.isKeyDown('KeyA')) {
+            targetGridX -= 1;
+             tryingToMove = true;
+        }
+        if (this.inputManager.isKeyDown('ArrowRight') || this.inputManager.isKeyDown('KeyD')) {
+            targetGridX += 1;
+             tryingToMove = true;
+        }
 
-        // Keep track of the final allowed position
-        let finalX = targetX;
-        let finalY = targetY;
+        if (!tryingToMove) {
+            return; // No movement input
+        }
 
-        // Create potential bounds based on the full target movement
-        const potentialBounds = { ...currentBounds, x: targetX, y: targetY };
+        // --- Collision Checks ---
 
-        // Check against all collidable objects (obstacles and towers)
-        const collidables = [...this.obstacles, ...this.towerManager.getAll()];
+        // 1. GridManager Check (Bounds, Terrain, Occupied by Towers/etc.)
+        if (!this.gridManager.isCellWalkable(targetGridX, targetGridY)) {
+            // Debug.log(`Target cell [${targetGridX}, ${targetGridY}] is not walkable (GridManager).`);
+            return; // Target cell blocked by grid rules
+        }
 
-        for (const obstacle of collidables) {
-            const obsBounds = obstacle.getBounds ? obstacle.getBounds() : obstacle; // Handle towers/obstacles
-            if (!obsBounds) continue;
+        // 2. Static Obstacle Check (using AABB)
+        // Calculate the bounding box of the target grid cell
+        const targetCellBounds = {
+            x: targetGridX * GRID_CONFIG.CELL_SIZE,
+            y: targetGridY * GRID_CONFIG.CELL_SIZE,
+            width: GRID_CONFIG.CELL_SIZE,
+            height: GRID_CONFIG.CELL_SIZE
+        };
 
-            // Check collision with the fully moved potential bounds
-            if (this.isColliding(potentialBounds, obsBounds)) {
-                // Collision detected! Now check X and Y separately to allow sliding.
-
-                // Check X-axis collision ONLY
-                const potentialBoundsXOnly = { ...currentBounds, x: targetX };
-                if (this.isColliding(potentialBoundsXOnly, obsBounds)) {
-                    // Collision on X. Adjust finalX to stop at the obstacle edge.
-                    if (moveX > 0) { // Moving right
-                        finalX = obsBounds.x - currentBounds.width;
-                    } else if (moveX < 0) { // Moving left
-                        finalX = obsBounds.x + obsBounds.width;
-                    }
-                    // Update potentialBounds for the Y check with the adjusted X
-                    potentialBounds.x = finalX;
-                }
-
-                // Check Y-axis collision ONLY (using ORIGINAL currentBounds.x)
-                const potentialBoundsYOnly = { ...currentBounds, y: targetY }; // Use currentBounds.x, NOT potentialBounds.x
-                 if (this.isColliding(potentialBoundsYOnly, obsBounds)) {
-                     // Collision on Y. Adjust finalY to stop at the obstacle edge.
-                     if (moveY > 0) { // Moving down
-                         finalY = obsBounds.y - currentBounds.height;
-                     } else if (moveY < 0) { // Moving up
-                         finalY = obsBounds.y + obsBounds.height;
-                     }
-                      // Update potentialBounds y for subsequent checks in this loop? Not strictly necessary here
-                      // as we apply finalX/finalY *after* the loop, but might be safer if logic changes.
-                       potentialBounds.y = finalY;
-                 }
+        for (const obstacle of this.obstacles) {
+             // Check if the hero's *potential* bounds (the target cell) collides with the obstacle
+             if (this.isColliding(targetCellBounds, obstacle)) {
+                // Debug.log(`Target cell [${targetGridX}, ${targetGridY}] blocked by static obstacle.`);
+                return; // Target cell blocked by a static obstacle
             }
         }
 
-        // Apply canvas boundary checks AFTER collision adjustments
-        finalX = Math.max(0, Math.min(finalX, this.canvas.width - currentBounds.width));
-        finalY = Math.max(0, Math.min(finalY, this.canvas.height - currentBounds.height));
+        // --- Initiate Move --- 
+        // If all checks pass, tell the hero to move to the target cell
+        this.hero.moveToCell(targetGridX, targetGridY);
 
-        // Apply the final calculated position
-        this.hero.x = finalX;
-        this.hero.y = finalY;
     }
 
     /**
