@@ -17,5 +17,7 @@ export const AssetConfig = {
     PROJECTILE_ARROW: 'assets/projectile_arrow.png',
     
     // Hero
-    HERO: 'assets/hero.png'
+    HERO: 'assets/hero.png',
+    HERO_IDLE_SHEET: 'assets/hero_idle_sheet.png',
+    HERO_WALK_SHEET: 'assets/hero_walk_sheet.png'
 }; 

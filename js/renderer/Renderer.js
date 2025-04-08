@@ -158,27 +158,71 @@ export class Renderer {
 
         this.ctx.save();
 
-        // Get sprite from asset loader
-        const sprite = this.assetLoader.get(drawData.type);
-        
-        if (sprite) {
-            // Draw sprite
-            this.ctx.drawImage(
-                sprite,
-                drawData.x,
-                drawData.y,
-                drawData.width,
-                drawData.height
-            );
+        // Check if it's animated data
+        if (drawData.animationSheet && drawData.sourceX !== undefined && drawData.sourceY !== undefined) {
+            console.log(`[Renderer] Attempting to draw animated. Sheet key: ${drawData.animationSheet}`); // Log entry
+            const spriteSheet = this.assetLoader.get(drawData.animationSheet);
+            console.log(`[Renderer] AssetLoader returned:`, spriteSheet); // Log result of get()
+
+            if (spriteSheet && spriteSheet.complete && spriteSheet.naturalWidth > 0) {
+                 // Log before drawImage
+                 console.log(`[Renderer] Drawing frame: sx=${drawData.sourceX}, sy=${drawData.sourceY}, sw=${drawData.sourceWidth}, sh=${drawData.sourceHeight}, dx=${drawData.x}, dy=${drawData.y}, dw=${drawData.width}, dh=${drawData.height}, flip=${drawData.flipHorizontal}`);
+                 
+                // Handle horizontal flipping
+                if (drawData.flipHorizontal) {
+                    this.ctx.translate(drawData.x + drawData.width, drawData.y); // Move pivot to right edge
+                    this.ctx.scale(-1, 1);
+                    // Draw image with adjusted destination x for flipped context
+                    this.ctx.drawImage(
+                        spriteSheet,
+                        drawData.sourceX,
+                        drawData.sourceY,
+                        drawData.sourceWidth,
+                        drawData.sourceHeight,
+                        0, // Draw at the translated origin (which is now the right edge)
+                        0,
+                        drawData.width,
+                        drawData.height
+                    );
+                } else {
+                    // Draw normally (no flip)
+                    this.ctx.drawImage(
+                        spriteSheet,
+                        drawData.sourceX,
+                        drawData.sourceY,
+                        drawData.sourceWidth,
+                        drawData.sourceHeight,
+                        drawData.x,
+                        drawData.y,
+                        drawData.width,
+                        drawData.height
+                    );
+                }
+            } else {
+                console.error(`[Renderer] Fallback triggered! Spritesheet invalid or missing. Key: ${drawData.animationSheet}`, spriteSheet);
+                // Fallback if spritesheet is missing but animation data exists
+                // Debug.warn(`Spritesheet not found for key: ${drawData.animationSheet}, drawing fallback.`); // Redundant now
+                this.drawFallbackRect(drawData);
+            }
         } else {
-            // Fallback: Draw colored rectangle
-            this.ctx.fillStyle = this.getFallbackColor(drawData.type);
-            this.ctx.fillRect(
-                drawData.x,
-                drawData.y,
-                drawData.width,
-                drawData.height
-            );
+            // --- Original Static Sprite Drawing Logic ---
+             console.log(`[Renderer] Attempting to draw static sprite. Type: ${drawData.type}`); // Log entry
+            const sprite = this.assetLoader.get(drawData.type);
+             console.log(`[Renderer] AssetLoader returned for static:`, sprite);
+
+            if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+                this.ctx.drawImage(
+                    sprite,
+                    drawData.x,
+                    drawData.y,
+                    drawData.width,
+                    drawData.height
+                );
+            } else {
+                 console.error(`[Renderer] Fallback triggered for static! Sprite invalid or missing. Type: ${drawData.type}`, sprite);
+                // Fallback: Draw colored rectangle if static sprite missing
+                this.drawFallbackRect(drawData);
+            }
         }
 
         // Draw range indicator if entity has range
@@ -283,14 +327,33 @@ export class Renderer {
         this.ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
     }
 
+    // Helper for fallback drawing
+    drawFallbackRect(drawData) {
+        this.ctx.fillStyle = this.getFallbackColor(drawData.type);
+        this.ctx.fillRect(
+            drawData.x,
+            drawData.y,
+            drawData.width,
+            drawData.height
+        );
+    }
+
     getFallbackColor(type) {
+        // Ensure HERO type uses the correct color
+        const baseType = type.startsWith('HERO') ? 'HERO' :
+                         type.startsWith('TOWER') ? 'TOWER' :
+                         type.startsWith('ENEMY') ? 'ENEMY' :
+                         type.startsWith('PROJECTILE') ? 'PROJECTILE' : type;
+
         const colors = {
             TOWER: '#3498db',
             ENEMY: '#e74c3c',
             HERO: '#2ecc71',
-            PROJECTILE: '#f1c40f'
+            PROJECTILE: '#f1c40f',
+            default: '#95a5a6' // Added a default color
         };
-        return colors[type] || '#95a5a6';
+        // Use baseType here and provide default
+        return colors[baseType] || colors.default;
     }
 
     drawGrid() {

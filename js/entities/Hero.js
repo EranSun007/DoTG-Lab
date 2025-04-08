@@ -1,6 +1,7 @@
 import { Entity } from './Entity.js';
 import { Projectile } from './Projectile.js';
 import { GRID_CONFIG } from '../config/GridConfig.js';
+import { ANIMATION_CONFIG } from '../config/AnimationConfig.js';
 
 export class Hero extends Entity {
     constructor(data) {
@@ -20,6 +21,13 @@ export class Hero extends Entity {
         this.targetY = this.y;
         this.moving = false;
         this.movementSpeed = GRID_CONFIG.CELL_SIZE * 4; // 4 cells per second
+
+        // Animation properties
+        this.animationState = 'IDLE'; // 'IDLE', 'WALK'
+        this.animationConfig = ANIMATION_CONFIG.HERO;
+        this.currentFrame = 0;
+        this.frameTimer = 0;
+        this.directionX = 1; // 1 for right, -1 for left
     }
 
     getAssetType() {
@@ -27,13 +35,37 @@ export class Hero extends Entity {
     }
 
     getDrawData() {
+        const currentAnim = this.animationConfig[this.animationState];
+        if (!currentAnim) {
+            console.error(`Invalid animation state: ${this.animationState}`);
+            // Fallback to original non-animated draw data
+            return {
+                type: this.getAssetType(), // Fallback type
+                x: this.x,
+                y: this.y,
+                width: this.width,
+                height: this.height,
+                range: this.range
+            };
+        }
+
+        const frameIndex = currentAnim.frames[this.currentFrame];
+        const sx = frameIndex * currentAnim.frameWidth;
+        const sy = 0; // Assuming horizontal spritesheet for now
+
         return {
-            type: this.getAssetType(),
+            type: this.getAssetType(), // Still useful maybe for some logic?
+            animationSheet: currentAnim.assetKey, // Key for the spritesheet
             x: this.x,
             y: this.y,
-            width: this.width,
-            height: this.height,
-            range: this.range
+            width: this.width, // Destination width
+            height: this.height, // Destination height
+            sourceX: sx,
+            sourceY: sy,
+            sourceWidth: currentAnim.frameWidth,
+            sourceHeight: currentAnim.frameHeight,
+            flipHorizontal: this.directionX === -1, // Flip if facing left
+            range: this.range // Keep range if needed for rendering indicators
         };
     }
 
@@ -56,27 +88,57 @@ export class Hero extends Entity {
      */
     update(deltaTime, gameState) {
         const currentTime = performance.now() / 1000;
-        
+        let dx = 0; // Track movement delta for direction/animation state
+
         // Update position if moving
         if (this.moving) {
-            const dx = this.targetX - this.x;
-            const dy = this.targetY - this.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
+            const currentDx = this.targetX - this.x;
+            const currentDy = this.targetY - this.y;
+            dx = currentDx; // Store dx for direction check
+            const distance = Math.sqrt(currentDx * currentDx + currentDy * currentDy);
+
             if (distance < 1) {
                 // Reached target
                 this.x = this.targetX;
                 this.y = this.targetY;
                 this.moving = false;
+                this.animationState = 'IDLE'; // Change animation to IDLE
+                this.currentFrame = 0; // Reset frame
+                this.frameTimer = 0;
             } else {
                 // Move towards target
                 const moveDistance = this.movementSpeed * deltaTime;
                 const ratio = moveDistance / distance;
-                this.x += dx * ratio;
-                this.y += dy * ratio;
+                this.x += currentDx * ratio;
+                this.y += currentDy * ratio;
+                this.animationState = 'WALK'; // Change animation to WALK
+
+                // Update direction based on horizontal movement
+                if (Math.abs(currentDx) > 0.1) { // Add tolerance
+                    this.directionX = Math.sign(currentDx);
+                }
+            }
+        } else {
+            // Ensure idle state if not moving
+            if (this.animationState !== 'IDLE') {
+                this.animationState = 'IDLE';
+                this.currentFrame = 0;
+                this.frameTimer = 0;
             }
         }
-        
+
+        // --- Update Animation Frame ---
+        const currentAnimData = this.animationConfig[this.animationState];
+        if (currentAnimData) {
+            this.frameTimer += deltaTime;
+            const frameDuration = 1 / currentAnimData.frameRate;
+            if (this.frameTimer > frameDuration) {
+                this.frameTimer -= frameDuration;
+                this.currentFrame = (this.currentFrame + 1) % currentAnimData.frameCount;
+            }
+        }
+        // --- End Animation Update ---
+
         // Find closest enemy in range
         let target = null;
         let closestDistance = this.range;
@@ -113,9 +175,17 @@ export class Hero extends Entity {
         // Check if the target cell is within grid bounds
         if (newX >= 0 && newX < GRID_CONFIG.GRID_WIDTH * GRID_CONFIG.CELL_SIZE &&
             newY >= 0 && newY < GRID_CONFIG.GRID_HEIGHT * GRID_CONFIG.CELL_SIZE) {
+            
+            // Don't start moving if already at the target cell
+            if (this.x === newX && this.y === newY) {
+                this.moving = false;
+                return;
+            }
+
             this.targetX = newX;
             this.targetY = newY;
             this.moving = true;
+            // No need to set animationState here, update() handles it
         }
     }
 
