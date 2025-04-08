@@ -257,6 +257,26 @@ TD_REBUILD/
 
 ---
 
+## ✨ Tip 11: Sprite Animation System — Added
+- Implemented sprite-based animations for entities, starting with the Hero.
+- Created `AnimationConfig.js` to define animation properties (spritesheet key, frame dimensions, frame rate, frame sequence).
+- Assets for animation sheets (e.g., `hero_idle_sheet.png`, `hero_walk_sheet.png`) are loaded via `AssetLoader` using keys defined in `AssetConfig.js`.
+- Entities manage their own animation state (`animationState`, `currentFrame`, `frameTimer`, `directionX` for Hero).
+- Entity `update()` method transitions states (e.g., `IDLE` <-> `WALK`) and advances `currentFrame` based on `deltaTime` and `frameRate`.
+- Entity `getDrawData()` now returns animation-specific data (`animationSheet`, `sourceX`, `sourceY`, `sourceWidth`, `sourceHeight`, `flipHorizontal`).
+- `Renderer.drawEntity()` updated to handle drawing specific frames from spritesheets using the 9-argument `drawImage` signature.
+- Renderer handles horizontal flipping (`flipHorizontal`) using `ctx.scale` and `ctx.translate`.
+- Added unit tests (`Hero.test.js`) to verify animation state logic, frame advancement, and `getDrawData` output.
+
+### Architecture Improvements:
+- Decoupled animation data (config) from animation logic (entity) and rendering (renderer).
+- Config-driven approach allows easy tuning of animation speeds and definitions.
+- System supports different animations per entity state.
+- Renderer handles complex drawing logic, keeping entities focused on state.
+- Added test coverage for animation logic.
+
+---
+
 ## Design Philosophy
 - OOP-first with modular manager/controller classes
 - Generic engineering-first architecture, content-neutral until final phase
