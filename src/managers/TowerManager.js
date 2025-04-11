@@ -1,4 +1,4 @@
-import { Tower } from '../entities/Tower.js';
+import { Tower } from '../entities/towers/Tower.js';
 import { Debug } from '../utils/Debug.js';
 
 /**
@@ -103,7 +103,4 @@ export class TowerManager {
         this.towers = null;
         Debug.log('TowerManager destroyed');
     }
-}
-
-// Re-export TowerManager from new location for backward compatibility with tests
-export { TowerManager } from '../../src/managers/TowerManager.js'; 
+} 

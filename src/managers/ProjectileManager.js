@@ -1,4 +1,4 @@
-import { Projectile } from '../entities/Projectile.js';
+import { Projectile } from '../entities/projectiles/Projectile.js';
 import { ProjectileConfig } from '../config/ProjectileConfig.js';
 import { Debug } from '../utils/Debug.js';
 
@@ -77,7 +77,4 @@ export class ProjectileManager {
         this.projectiles = null;
         Debug.log('ProjectileManager destroyed');
     }
-}
-
-// Re-export ProjectileManager from new location for backward compatibility with tests
-export { ProjectileManager } from '../../src/managers/ProjectileManager.js'; 
+} 

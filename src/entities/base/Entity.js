@@ -15,11 +15,14 @@
  */
 
 /**
- * Base class for all game entities
+ * @class Entity
+ * @description Base class for all game entities
  * Provides common functionality and properties for all game objects
+ * All entity types (towers, enemies, projectiles) extend this class
  */
 export class Entity {
     /**
+     * @constructor
      * @param {EntityData} data - Entity initialization data
      */
     constructor(data) {
@@ -115,7 +118,4 @@ export class Entity {
     getAssetType() {
         return 'ENTITY_BASE';
     }
-}
-
-// Re-export Entity from new location for backward compatibility with tests
-export { Entity } from '../../src/entities/base/Entity.js'; 
+} 

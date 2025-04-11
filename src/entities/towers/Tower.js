@@ -1,10 +1,24 @@
-import { Entity } from './Entity.js';
-import { ProjectileConfig } from '../config/ProjectileConfig.js';
-import { GameConstants } from '../config/GameConstants.js';
-import { Debug } from '../utils/Debug.js';
-import { TowerConfig } from '../config/TowerConfig.js';
+import { Entity } from '../base/Entity.js';
+import { ProjectileConfig } from '../../config/ProjectileConfig.js';
+import { GameConstants } from '../../config/GameConstants.js';
+import { Debug } from '../../utils/Debug.js';
+import { TowerConfig } from '../../config/TowerConfig.js';
 
+/**
+ * @class Tower
+ * @extends Entity
+ * @description Defensive structure that attacks enemies within range
+ */
 export class Tower extends Entity {
+    /**
+     * @constructor
+     * @param {Object} data - Tower initialization data
+     * @param {string} data.type - Tower type from TowerConfig
+     * @param {number} data.range - Attack range
+     * @param {number} data.damage - Damage per hit
+     * @param {number} data.attackSpeed - Attacks per second
+     * @param {number} data.cost - Gold cost to build
+     */
     constructor(data) {
         super(data);
         const config = TowerConfig[data.type] || TowerConfig.ranged;
@@ -143,7 +157,4 @@ export class Tower extends Entity {
         this.lastAttackTime = state.lastAttackTime;
         this.level = state.level;
     }
-}
-
-// Re-export Tower from new location for backward compatibility with tests
-export { Tower } from '../../src/entities/towers/Tower.js'; 
+} 

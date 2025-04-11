@@ -1,9 +1,26 @@
-import { Entity } from './Entity.js';
-import { GameConstants } from '../config/GameConstants.js';
-import { GRID_CONFIG } from '../config/GridConfig.js'; // Import grid config
-import { Debug } from '../utils/Debug.js'; // Import Debug
+import { Entity } from '../base/Entity.js';
+import { GameConstants } from '../../config/GameConstants.js';
+import { GRID_CONFIG } from '../../config/GridConfig.js'; // Import grid config
+import { Debug } from '../../utils/Debug.js'; // Import Debug
 
+/**
+ * @class Enemy
+ * @extends Entity
+ * @description Enemy entity that follows paths and damages the player
+ */
 export class Enemy extends Entity {
+    /**
+     * @constructor
+     * @param {Object} data - Enemy initialization data
+     * @param {string} data.type - Enemy type
+     * @param {number} data.speed - Movement speed
+     * @param {number} data.value - Gold value when defeated
+     * @param {number} data.health - Hit points
+     * @param {Object} data.gridManager - Reference to the grid manager
+     * @param {Object} data.pathfinder - Reference to the pathfinding system
+     * @param {number} data.goalX - Goal X position in world coordinates
+     * @param {number} data.goalY - Goal Y position in world coordinates
+     */
     constructor(data) {
         super(data);
         this.type = data.type || 'basic';
@@ -149,7 +166,21 @@ export class Enemy extends Entity {
             }
         }
     }
-}
 
-// Re-export Enemy from new location for backward compatibility with tests
-export { Enemy } from '../../src/entities/enemies/Enemy.js'; 
+    /**
+     * Sync the entity's state from serialized data
+     * @param {Object} state - The serialized state
+     */
+    syncState(state) {
+        Object.assign(this, state);
+        
+        // If this entity was created via sync without a gridManager/pathfinder,
+        // ensure we don't try to initialize a path
+        if (!this.gridManager || !this.pathfinder) {
+            this.path = state.path || null;
+            this.currentPathIndex = state.currentPathIndex || 0;
+            this.targetPoint = state.targetPoint || null;
+            Debug.log('Enemy syncState: path data copied from state without re-initialization');
+        }
+    }
+} 

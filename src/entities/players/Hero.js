@@ -1,9 +1,22 @@
-import { Entity } from './Entity.js';
-import { Projectile } from './Projectile.js';
-import { GRID_CONFIG } from '../config/GridConfig.js';
-import { ANIMATION_CONFIG } from '../config/AnimationConfig.js';
+import { Entity } from '../base/Entity.js';
+import { Projectile } from '../projectiles/Projectile.js';
+import { GRID_CONFIG } from '../../config/GridConfig.js';
+import { ANIMATION_CONFIG } from '../../config/AnimationConfig.js';
 
+/**
+ * @class Hero
+ * @extends Entity
+ * @description Player-controlled entity with movement, combat abilities, and animations
+ */
 export class Hero extends Entity {
+    /**
+     * @constructor
+     * @param {Object} data - Hero initialization data
+     * @param {number} data.speed - Movement speed
+     * @param {number} data.range - Attack range
+     * @param {number} data.damage - Attack damage
+     * @param {number} data.attackSpeed - Attacks per second
+     */
     constructor(data) {
         super(data);
         this.speed = data.speed || 2;
@@ -49,7 +62,23 @@ export class Hero extends Entity {
             };
         }
 
-        const frameIndex = currentAnim.frames[this.currentFrame];
+        // Ensure currentFrame is within bounds
+        const safeFrame = Math.min(this.currentFrame, currentAnim.frames.length - 1);
+        const frameIndex = currentAnim.frames[safeFrame];
+        
+        // Check for valid frameIndex
+        if (frameIndex === undefined) {
+            console.error(`Invalid frame index: ${safeFrame} for animation ${this.animationState}`);
+            return {
+                type: this.getAssetType(),
+                x: this.x,
+                y: this.y,
+                width: this.width,
+                height: this.height,
+                range: this.range
+            };
+        }
+        
         const sx = frameIndex * currentAnim.frameWidth;
         const sy = 0; // Assuming horizontal spritesheet for now
 
@@ -132,9 +161,14 @@ export class Hero extends Entity {
         if (currentAnimData) {
             this.frameTimer += deltaTime;
             const frameDuration = 1 / currentAnimData.frameRate;
-            if (this.frameTimer > frameDuration) {
-                this.frameTimer -= frameDuration;
-                this.currentFrame = (this.currentFrame + 1) % currentAnimData.frameCount;
+            
+            // Check if it's time to advance to the next frame
+            if (this.frameTimer >= frameDuration) {
+                // Reset timer, keeping remainder for smoother animation
+                this.frameTimer = this.frameTimer % frameDuration;
+                
+                // Move to next frame, ensuring we don't exceed frame count
+                this.currentFrame = (this.currentFrame + 1) % currentAnimData.frames.length;
             }
         }
         // --- End Animation Update ---
@@ -203,7 +237,4 @@ export class Hero extends Entity {
 
         this.projectiles.push(projectile);
     }
-}
-
-// Re-export Hero from new location for backward compatibility with tests
-export { Hero } from '../../src/entities/players/Hero.js'; 
+} 

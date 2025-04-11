@@ -161,11 +161,11 @@ describe('EnemyManager', () => {
       const originalState = manager.getState();
 
       const newManager = new EnemyManager();
-      // NOTE: This syncState might be incomplete if Enemy constructor strictly
-      // requires gridManager/pathfinder and they aren't in the serialized state.
-      // This test assumes Enemy.getState() includes enough info or the
-      // Enemy constructor can handle missing grid/pathfinder during state load.
-      newManager.syncState(originalState);
+      // Pass dependencies to syncState for the test environment
+      newManager.syncState(originalState, {
+        gridManager: mockGridManager,
+        pathfinder: mockPathfinder
+      });
 
       const restoredState = newManager.getState();
 

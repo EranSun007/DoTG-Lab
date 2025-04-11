@@ -107,22 +107,31 @@ describe('Hero Entity Animation', () => {
             expect(hero.animationState).toBe('WALK');
             expect(hero.currentFrame).toBe(0);
             
+            // Reset the frameTimer to ensure consistent testing
+            hero.frameTimer = 0;
+            
+            // Test first frame advancement - should stay at 0 until frameDuration is reached
             hero.update(walkFrameDuration - 0.01, {}); // Just under duration
             // Need to move position slightly for update to process animation
             hero.x += hero.movementSpeed * (walkFrameDuration - 0.01);
             expect(hero.currentFrame).toBe(0);
 
+            // Add enough time to trigger frame advancement
             hero.update(0.02, {}); // Push over
             hero.x += hero.movementSpeed * 0.02;
             expect(hero.currentFrame).toBe(1);
             
+            // Move to next frames with consistent timing
             hero.update(walkFrameDuration, {}); 
             hero.x += hero.movementSpeed * walkFrameDuration;
             expect(hero.currentFrame).toBe(2);
+            
             hero.update(walkFrameDuration, {}); 
             hero.x += hero.movementSpeed * walkFrameDuration;
             expect(hero.currentFrame).toBe(3);
-            hero.update(walkFrameDuration, {}); // Loop back
+            
+            // Loop back to 0
+            hero.update(walkFrameDuration, {}); 
             hero.x += hero.movementSpeed * walkFrameDuration;
             expect(hero.currentFrame).toBe(0);
         });

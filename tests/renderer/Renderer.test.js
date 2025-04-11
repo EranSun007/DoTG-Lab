@@ -122,7 +122,16 @@ describe('Renderer', () => {
           height: 32,
         }),
       };
-      mockAssetLoaderInstance.get.mockReturnValue({ width: 32, height: 32, isMockAsset: true });
+      
+      // Mock a complete image with naturalWidth > 0
+      const mockImage = { 
+        width: 32, 
+        height: 32, 
+        isMockAsset: true, 
+        complete: true, 
+        naturalWidth: 32 
+      };
+      mockAssetLoaderInstance.get.mockReturnValue(mockImage);
 
       renderer.drawEntity(entity);
       expect(mockContext.save).toHaveBeenCalled();
@@ -262,7 +271,13 @@ describe('Renderer', () => {
   describe('sprite rendering', () => {
     it('should draw sprite when available', () => {
       const entity = { getDrawData: () => ({ type: 'HERO', x: 50, y: 50, width: 30, height: 30 }) };
-      const mockSprite = { width: 30, height: 30, isMockAsset: true };
+      const mockSprite = { 
+        width: 30, 
+        height: 30, 
+        isMockAsset: true, 
+        complete: true, 
+        naturalWidth: 30 
+      };
       mockAssetLoaderInstance.get.mockReturnValue(mockSprite);
 
       renderer.drawEntity(entity);

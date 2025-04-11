@@ -1,7 +1,21 @@
-import { Entity } from './Entity.js';
-import { GameConstants } from '../config/GameConstants.js';
+import { Entity } from '../base/Entity.js';
+import { GameConstants } from '../../config/GameConstants.js';
 
+/**
+ * @class Projectile
+ * @extends Entity
+ * @description Projectile entity fired by towers and heroes to damage enemies
+ */
 export class Projectile extends Entity {
+    /**
+     * @constructor
+     * @param {Object} data - Projectile initialization data
+     * @param {number} data.speed - Movement speed
+     * @param {number} data.damage - Damage on hit
+     * @param {Object} data.target - Target entity to track
+     * @param {number} data.splashRadius - Area of effect radius
+     * @param {number} data.splashDamage - Area damage amount
+     */
     constructor(data) {
         super(data);
         this.speed = data.speed || 300;
@@ -59,7 +73,4 @@ export class Projectile extends Entity {
     isAlive() {
         return !this.hasHitTarget;
     }
-}
-
-// Re-export Projectile from new location for backward compatibility with tests
-export { Projectile } from '../../src/entities/projectiles/Projectile.js'; 
+} 

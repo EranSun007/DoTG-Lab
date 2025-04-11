@@ -1,9 +1,19 @@
 import { Debug } from '../utils/Debug.js';
 import { UILabels } from '../config/UILabels.js';
 import { GameConstants } from '../config/GameConstants.js';
-import { Camera } from '../game/Camera.js';
+import { Camera } from './Camera.js';
 
+/**
+ * @class Renderer
+ * @description Handles all canvas rendering operations
+ * Centralizes drawing logic and provides consistent rendering API
+ */
 export class Renderer {
+    /**
+     * @constructor
+     * @param {HTMLCanvasElement} canvas - The canvas element to render to
+     * @param {AssetLoader} assetLoader - Asset loader for sprites and images
+     */
     constructor(canvas, assetLoader) {
         this.canvas = canvas;
         this.ctx = typeof canvas.getContext === 'function' ? canvas.getContext('2d') : canvas;
@@ -160,14 +170,9 @@ export class Renderer {
 
         // Check if it's animated data
         if (drawData.animationSheet && drawData.sourceX !== undefined && drawData.sourceY !== undefined) {
-            console.log(`[Renderer] Attempting to draw animated. Sheet key: ${drawData.animationSheet}`); // Log entry
             const spriteSheet = this.assetLoader.get(drawData.animationSheet);
-            console.log(`[Renderer] AssetLoader returned:`, spriteSheet); // Log result of get()
-
+            
             if (spriteSheet && spriteSheet.complete && spriteSheet.naturalWidth > 0) {
-                 // Log before drawImage
-                 console.log(`[Renderer] Drawing frame: sx=${drawData.sourceX}, sy=${drawData.sourceY}, sw=${drawData.sourceWidth}, sh=${drawData.sourceHeight}, dx=${drawData.x}, dy=${drawData.y}, dw=${drawData.width}, dh=${drawData.height}, flip=${drawData.flipHorizontal}`);
-                 
                 // Handle horizontal flipping
                 if (drawData.flipHorizontal) {
                     this.ctx.translate(drawData.x + drawData.width, drawData.y); // Move pivot to right edge
@@ -199,17 +204,13 @@ export class Renderer {
                     );
                 }
             } else {
-                console.error(`[Renderer] Fallback triggered! Spritesheet invalid or missing. Key: ${drawData.animationSheet}`, spriteSheet);
-                // Fallback if spritesheet is missing but animation data exists
-                // Debug.warn(`Spritesheet not found for key: ${drawData.animationSheet}, drawing fallback.`); // Redundant now
+                Debug.warn(`Fallback triggered! Spritesheet invalid or missing. Key: ${drawData.animationSheet}`);
                 this.drawFallbackRect(drawData);
             }
         } else {
             // --- Original Static Sprite Drawing Logic ---
-             console.log(`[Renderer] Attempting to draw static sprite. Type: ${drawData.type}`); // Log entry
             const sprite = this.assetLoader.get(drawData.type);
-             console.log(`[Renderer] AssetLoader returned for static:`, sprite);
-
+            
             if (sprite && sprite.complete && sprite.naturalWidth > 0) {
                 this.ctx.drawImage(
                     sprite,
@@ -219,8 +220,7 @@ export class Renderer {
                     drawData.height
                 );
             } else {
-                 console.error(`[Renderer] Fallback triggered for static! Sprite invalid or missing. Type: ${drawData.type}`, sprite);
-                // Fallback: Draw colored rectangle if static sprite missing
+                Debug.warn(`Fallback triggered for static! Sprite invalid or missing. Type: ${drawData.type}`);
                 this.drawFallbackRect(drawData);
             }
         }
@@ -443,7 +443,4 @@ export class Renderer {
             // Optional: Add border or texture based on obstacle.type later
         });
     }
-}
-
-// Re-export Renderer from new location for backward compatibility with tests
-export { Renderer } from '../../src/rendering/Renderer.js'; 
+} 
