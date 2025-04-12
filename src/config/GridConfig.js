@@ -13,5 +13,6 @@ export const TERRAIN_TYPES = {
     EMPTY: 'empty',
     PATH: 'path',
     BLOCKED: 'blocked',
-    TOWER: 'tower'
+    TOWER: 'tower',
+    HERO: 'hero'
 }; 

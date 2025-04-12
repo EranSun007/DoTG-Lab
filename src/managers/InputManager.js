@@ -33,14 +33,10 @@ export class InputManager {
 
     handleKeyDown(event) {
         this.keys.add(event.key.toLowerCase());
-        console.log('Key pressed:', event.key.toLowerCase());
-        console.log('Current keys:', Array.from(this.keys));
     }
 
     handleKeyUp(event) {
         this.keys.delete(event.key.toLowerCase());
-        console.log('Key released:', event.key.toLowerCase());
-        console.log('Current keys:', Array.from(this.keys));
     }
 
     handleMouseMove(event) {
@@ -52,12 +48,10 @@ export class InputManager {
     }
 
     handleMouseDown(event) {
-        console.log('Mouse down event');
         this.isMousePressed = true;
     }
 
     handleMouseUp(event) {
-        console.log('Mouse up event');
         this.isMousePressed = false;
     }
 
@@ -100,10 +94,6 @@ export class InputManager {
         this.previousKeys = new Set(this.keys);
         
         // Update any input state that needs to be updated every frame
-        if (this.isMousePressed) {
-            const worldPos = this.getMousePosition(); 
-            console.log('Mouse is currently pressed at world coordinates:', worldPos);
-        }
     }
 
     /**

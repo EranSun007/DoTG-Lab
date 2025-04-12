@@ -47,6 +47,18 @@ export class GridManager {
     setCellTerrain(x, y, terrainType) {
         if (this.isValidCell(x, y)) {
             this.cells[y][x].terrainType = terrainType;
+            
+            // If marking as blocked, also set as occupied for better detection
+            if (terrainType === TERRAIN_TYPES.BLOCKED) {
+                this.cells[y][x].occupied = true;
+            }
+            // If clearing to empty, make sure it's not occupied unless it's a special entity
+            else if (terrainType === TERRAIN_TYPES.EMPTY && 
+                     this.cells[y][x].entity && 
+                     this.cells[y][x].entity.type === 'obstacle') {
+                this.cells[y][x].occupied = false;
+                this.cells[y][x].entity = null;
+            }
         }
     }
 
@@ -80,8 +92,14 @@ export class GridManager {
 
             for (let y = startRow; y < endRow; y++) {
                 for (let x = startCol; x < endCol; x++) {
-                    // Mark the cell as blocked terrain
-                    this.setCellTerrain(x, y, TERRAIN_TYPES.BLOCKED);
+                    if (this.isValidCell(x, y)) {
+                        // Mark the cell as blocked terrain
+                        this.setCellTerrain(x, y, TERRAIN_TYPES.BLOCKED);
+                        
+                        // Also mark the cell as occupied to ensure double protection
+                        this.cells[y][x].occupied = true;
+                        this.cells[y][x].entity = { type: 'obstacle' };
+                    }
                 }
             }
         });

@@ -57,15 +57,16 @@ export class Game {
         
         // Initialize hero at center of canvas
         this.hero = new Hero({
-            x: canvas.width / 2 - 24,
-            y: canvas.height / 2 - 24,
-            width: 48,
-            height: 48,
+            x: GRID_CONFIG.CELL_SIZE * 2, // Start a bit away from the edge
+            y: GRID_CONFIG.CELL_SIZE * Math.floor(GRID_CONFIG.GRID_HEIGHT / 2), // Center vertically
+            width: GRID_CONFIG.CELL_SIZE,
+            height: GRID_CONFIG.CELL_SIZE,
             health: 200,
             speed: 2,
             range: 120,
             damage: 15,
-            attackSpeed: 2
+            attackSpeed: 2,
+            gridManager: this.gridManager // Pass gridManager to hero
         });
         this.entities = new Map();
         this.entities.set(this.hero.id, this.hero);
@@ -399,8 +400,8 @@ export class Game {
     }
 
     /**
-     * Update game state
-     * @param {number} deltaTime - Time since last update in seconds
+     * Update the game state
+     * @param {number} deltaTime - Time since last frame
      */
     update(deltaTime) {
         if (this.paused) return;
@@ -415,6 +416,9 @@ export class Game {
                 Debug.log('Current Game State:', state);
             }
         }
+
+        // Ensure obstacles are always properly marked in the grid
+        this.gridManager.updateGridWithObstacles(this.obstacles);
 
         // Update hovered cell based on mouse position
         const mousePos = this.inputManager.getMousePosition();
@@ -539,58 +543,37 @@ export class Game {
         let targetGridX = Math.floor(this.hero.x / GRID_CONFIG.CELL_SIZE);
         let targetGridY = Math.floor(this.hero.y / GRID_CONFIG.CELL_SIZE);
         let tryingToMove = false;
+        let direction = '';
 
         // Calculate target grid cell based on input
         if (this.inputManager.isKeyDown('ArrowUp') || this.inputManager.isKeyDown('KeyW')) {
             targetGridY -= 1;
             tryingToMove = true;
+            direction += 'UP ';
         }
         if (this.inputManager.isKeyDown('ArrowDown') || this.inputManager.isKeyDown('KeyS')) {
             targetGridY += 1;
-             tryingToMove = true;
+            tryingToMove = true;
+            direction += 'DOWN ';
         }
         if (this.inputManager.isKeyDown('ArrowLeft') || this.inputManager.isKeyDown('KeyA')) {
             targetGridX -= 1;
-             tryingToMove = true;
+            tryingToMove = true;
+            direction += 'LEFT ';
         }
         if (this.inputManager.isKeyDown('ArrowRight') || this.inputManager.isKeyDown('KeyD')) {
             targetGridX += 1;
-             tryingToMove = true;
+            tryingToMove = true;
+            direction += 'RIGHT ';
         }
 
         if (!tryingToMove) {
             return; // No movement input
         }
 
-        // --- Collision Checks ---
-
-        // 1. GridManager Check (Bounds, Terrain, Occupied by Towers/etc.)
-        if (!this.gridManager.isCellWalkable(targetGridX, targetGridY)) {
-            // Debug.log(`Target cell [${targetGridX}, ${targetGridY}] is not walkable (GridManager).`);
-            return; // Target cell blocked by grid rules
-        }
-
-        // 2. Static Obstacle Check (using AABB)
-        // Calculate the bounding box of the target grid cell
-        const targetCellBounds = {
-            x: targetGridX * GRID_CONFIG.CELL_SIZE,
-            y: targetGridY * GRID_CONFIG.CELL_SIZE,
-            width: GRID_CONFIG.CELL_SIZE,
-            height: GRID_CONFIG.CELL_SIZE
-        };
-
-        for (const obstacle of this.obstacles) {
-             // Check if the hero's *potential* bounds (the target cell) collides with the obstacle
-             if (this.isColliding(targetCellBounds, obstacle)) {
-                // Debug.log(`Target cell [${targetGridX}, ${targetGridY}] blocked by static obstacle.`);
-                return; // Target cell blocked by a static obstacle
-            }
-        }
-
-        // --- Initiate Move --- 
-        // If all checks pass, tell the hero to move to the target cell
+        // Skip collision checks and pass responsibility to Hero.moveToCell
+        // This avoids redundant checks and consolidates logic in one place
         this.hero.moveToCell(targetGridX, targetGridY);
-
     }
 
     /**

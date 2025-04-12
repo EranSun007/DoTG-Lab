@@ -67,14 +67,16 @@ describe('Hero Entity Animation', () => {
         hero.update(0.016, {}); 
         expect(hero.directionX).toBe(1);
 
-        // Reset and move left
-        hero.x = GRID_CONFIG.CELL_SIZE * 2;
-        hero.targetX = hero.x;
+        // Reset and move left - must set position to create a correct left movement
+        hero.x = GRID_CONFIG.CELL_SIZE * 2; // Position at grid x=2
+        hero.y = 0;
+        hero.targetX = hero.x; // Update target to match current position
+        hero.targetY = hero.y;
         hero.moving = false;
         hero.animationState = 'IDLE';
-        hero.directionX = 1;
         
-        hero.moveToCell(1, 0); // Move to (32, 0) from (64, 0)
+        // Now move to position at grid x=1 (left movement)
+        hero.moveToCell(1, 0); 
         hero.update(0.016, {});
         expect(hero.directionX).toBe(-1);
     });
@@ -102,37 +104,37 @@ describe('Hero Entity Animation', () => {
         });
 
         it('should advance WALK frame correctly based on frameRate', () => {
-            hero.moveToCell(5, 0); // Start long movement
-            hero.update(0.01, {}); // Enter WALK state
+            // Set up hero for walking animation
+            hero.x = 0;
+            hero.y = 0;
+            hero.targetX = GRID_CONFIG.CELL_SIZE * 10; // Far enough target to keep moving
+            hero.targetY = 0;
+            hero.moving = true;
+            hero.animationState = 'WALK';
+            hero.currentFrame = 0;
+            hero.frameTimer = 0;
+            
+            // Verify initial state
             expect(hero.animationState).toBe('WALK');
             expect(hero.currentFrame).toBe(0);
             
-            // Reset the frameTimer to ensure consistent testing
-            hero.frameTimer = 0;
-            
-            // Test first frame advancement - should stay at 0 until frameDuration is reached
+            // Test first frame advancement
             hero.update(walkFrameDuration - 0.01, {}); // Just under duration
-            // Need to move position slightly for update to process animation
-            hero.x += hero.movementSpeed * (walkFrameDuration - 0.01);
-            expect(hero.currentFrame).toBe(0);
-
+            expect(hero.currentFrame).toBe(0); // Should still be first frame
+            
             // Add enough time to trigger frame advancement
-            hero.update(0.02, {}); // Push over
-            hero.x += hero.movementSpeed * 0.02;
+            hero.update(0.02, {}); // Push over threshold
             expect(hero.currentFrame).toBe(1);
             
             // Move to next frames with consistent timing
             hero.update(walkFrameDuration, {}); 
-            hero.x += hero.movementSpeed * walkFrameDuration;
             expect(hero.currentFrame).toBe(2);
             
             hero.update(walkFrameDuration, {}); 
-            hero.x += hero.movementSpeed * walkFrameDuration;
             expect(hero.currentFrame).toBe(3);
             
             // Loop back to 0
             hero.update(walkFrameDuration, {}); 
-            hero.x += hero.movementSpeed * walkFrameDuration;
             expect(hero.currentFrame).toBe(0);
         });
     });

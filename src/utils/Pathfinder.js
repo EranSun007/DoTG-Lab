@@ -1,4 +1,5 @@
 import { GRID_CONFIG } from '../config/GridConfig.js';
+import { Debug } from '../utils/Debug.js';
 
 // Represents a node in the pathfinding grid
 class PathNode {
@@ -22,6 +23,9 @@ export class Pathfinder {
         this.gridWidth = GRID_CONFIG.GRID_WIDTH;
         this.gridHeight = GRID_CONFIG.GRID_HEIGHT;
         this.nodes = this.createNodeGrid();
+        this.lastPathfindingWarningTime = null;
+        this.lastNoPathWarningTime = null;
+        this.lastNoPathKey = null;
     }
 
     // Initialize the grid of PathNode objects
@@ -49,9 +53,11 @@ export class Pathfinder {
 
     // A* Pathfinding Algorithm
     findPath(startGridX, startGridY, endGridX, endGridY) {
+        // Check if coordinates are valid cells
         if (!this.gridManager.isValidCell(startGridX, startGridY) || 
             !this.gridManager.isValidCell(endGridX, endGridY)) {
-            console.warn('Pathfinder: Start or end cell out of bounds.');
+            // Use Debug instead of console to allow for filtering/throttling
+            Debug.warn('Pathfinder: Start or end cell out of bounds.');
             return null; // Invalid start or end
         }
 
@@ -60,12 +66,30 @@ export class Pathfinder {
         const startNode = this.nodes[startGridY][startGridX];
         const endNode = this.nodes[endGridY][endGridX];
 
-        // Check if start or end is unwalkable
-        if (!this.gridManager.isCellWalkable(startGridX, startGridY) || 
-            !this.gridManager.isCellWalkable(endGridX, endGridY)) {
-             console.warn('Pathfinder: Start or end cell is not walkable.');
-             // Allow starting slightly off if needed, but end must be walkable usually
-             // return null; 
+        // Check if start or end is unwalkable (but don't bail out immediately for start cell)
+        const startCellWalkable = this.gridManager.isCellWalkable(startGridX, startGridY);
+        const endCellWalkable = this.gridManager.isCellWalkable(endGridX, endGridY);
+        
+        if (!startCellWalkable || !endCellWalkable) {
+            // Rate limit these warnings to avoid console spam
+            // Only log once every 2 seconds for this specific warning
+            const now = Date.now();
+            if (!this.lastPathfindingWarningTime || now - this.lastPathfindingWarningTime > 2000) {
+                Debug.warn('Pathfinder: Start or end cell is not walkable.');
+                this.lastPathfindingWarningTime = now;
+            }
+            
+            // If end cell is not walkable, find the nearest walkable cell to the target
+            if (!endCellWalkable) {
+                const alternativeEnd = this.findNearestWalkableCell(endGridX, endGridY, 5);
+                if (alternativeEnd) {
+                    // Recursively call with the alternative end point
+                    return this.findPath(startGridX, startGridY, alternativeEnd.x, alternativeEnd.y);
+                }
+            }
+            
+            // If start cell is not walkable, we can still try to find a path 
+            // (enemy might be slightly off-grid)
         }
 
         const openSet = new Set([startNode]);
@@ -88,8 +112,10 @@ export class Pathfinder {
 
             const neighbors = this.getNeighbors(currentNode);
             for (const neighbor of neighbors) {
-                if (closedSet.has(neighbor) || !this.gridManager.isCellWalkable(neighbor.x, neighbor.y)) {
-                    continue; // Ignore already processed or unwalkable neighbors
+                if (closedSet.has(neighbor) || 
+                    (!startCellWalkable && neighbor === startNode) || // Special case: allow start node even if unwalkable
+                    (neighbor !== startNode && !this.gridManager.isCellWalkable(neighbor.x, neighbor.y))) {
+                    continue; // Ignore processed or unwalkable neighbors (except the start node)
                 }
 
                 // Calculate tentative gCost
@@ -110,8 +136,18 @@ export class Pathfinder {
             }
         }
 
-        // No path found
-        console.warn('Pathfinder: No path found from', {x: startGridX, y: startGridY}, 'to', {x: endGridX, y: endGridY});
+        // No path found - rate limit these warnings too
+        const now = Date.now();
+        if (!this.lastNoPathWarningTime || now - this.lastNoPathWarningTime > 3000) {
+            // Only log this specific error combination once every 3 seconds
+            const pathKey = `${startGridX},${startGridY}->${endGridX},${endGridY}`;
+            if (this.lastNoPathKey !== pathKey) {
+                Debug.warn('Pathfinder: No path found from', {x: startGridX, y: startGridY}, 'to', {x: endGridX, y: endGridY});
+                this.lastNoPathKey = pathKey;
+                this.lastNoPathWarningTime = now;
+            }
+        }
+        
         return null;
     }
 
@@ -187,5 +223,35 @@ export class Pathfinder {
             currentNode = currentNode.parent;
         }
         return path.reverse(); // Reverse to get path from start to end
+    }
+
+    // Find the nearest walkable cell to the given coordinates
+    findNearestWalkableCell(gridX, gridY, maxSearchRadius = 3) {
+        if (this.gridManager.isCellWalkable(gridX, gridY)) {
+            return { x: gridX, y: gridY }; // Already walkable
+        }
+        
+        // Search in expanding spiral pattern
+        for (let radius = 1; radius <= maxSearchRadius; radius++) {
+            // Check cells in a square pattern around the target
+            for (let offsetY = -radius; offsetY <= radius; offsetY++) {
+                for (let offsetX = -radius; offsetX <= radius; offsetX++) {
+                    // Skip cells that aren't on the perimeter of the current radius
+                    if (Math.abs(offsetX) < radius && Math.abs(offsetY) < radius) {
+                        continue;
+                    }
+                    
+                    const checkX = gridX + offsetX;
+                    const checkY = gridY + offsetY;
+                    
+                    if (this.gridManager.isValidCell(checkX, checkY) && 
+                        this.gridManager.isCellWalkable(checkX, checkY)) {
+                        return { x: checkX, y: checkY };
+                    }
+                }
+            }
+        }
+        
+        return null; // No walkable cell found within the search radius
     }
 } 
