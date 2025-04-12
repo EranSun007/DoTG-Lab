@@ -40,6 +40,14 @@ The game is built using Vanilla JavaScript with ES6 modules and follows an Objec
 - Managers handle entity creation, updates, and lifecycle
 - Managers communicate via the central `gameState` object
 
+### Grid and Pathfinding System
+- `GridManager` maintains a 2D grid representing the game world
+- Grid cells track terrain types (EMPTY, BLOCKED, TOWER, HERO)
+- `Pathfinder` implements A* algorithm for enemy navigation
+- Dynamic obstacle system allows Hero to block enemy paths
+- Enemies recalculate paths when blocked by the moving Hero
+- Clear position tracking with `updateGridPosition()` and cleanup
+
 ### Rendering System
 - Decoupled rendering via `Renderer` class
 - Entities provide their visual data via `getDrawData()`

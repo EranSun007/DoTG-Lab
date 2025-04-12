@@ -277,6 +277,25 @@ TD_REBUILD/
 
 ---
 
+## ✨ Tip 12: Dynamic Obstacle System — Added
+- Implemented a dynamic grid-based obstacle system that allows the Hero to block enemy paths.
+- Enhanced `GridManager` with terrain types (`EMPTY`, `BLOCKED`, `TOWER`, `HERO`) to represent different cell states.
+- Hero updates the grid in real-time via `updateGridPosition()` to mark its current position and clear previous positions.
+- Enemies use `isPathBlocked()` to detect when their path is obstructed by the moving Hero.
+- Pathfinding system (`Pathfinder` class) dynamically recalculates enemy paths when obstacles (including the Hero) block their current route.
+- Implemented path retry mechanism with fallback paths for scenarios where no valid path exists.
+- Added cleanup routines to prevent "stuck" cells from persisting after the Hero moves.
+- Grid cells track entity references to distinguish Hero-occupied cells from other obstacles.
+
+### Architecture Improvements:
+- Created a truly dynamic game environment where player movement affects enemy behavior.
+- Decoupled grid representation from visual rendering for clean separation of concerns.
+- Implemented robust pathfinding with error handling and fallbacks for edge cases.
+- Added debugging support for visualizing grid state and path calculations.
+- Positioned the system for future enhancements like dynamic destructible terrain.
+
+---
+
 ## Design Philosophy
 - OOP-first with modular manager/controller classes
 - Generic engineering-first architecture, content-neutral until final phase
