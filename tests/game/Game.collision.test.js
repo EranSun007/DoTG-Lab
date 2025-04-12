@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Game } from '../../js/Game.js';
+import { Game } from '../../src/core/Game.js';
 import { Hero } from '../../js/entities/Hero.js';
 import { Tower } from '../../js/entities/Tower.js';
 import { InputManager } from '../../js/managers/InputManager.js';

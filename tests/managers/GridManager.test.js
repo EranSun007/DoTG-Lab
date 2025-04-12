@@ -1,4 +1,4 @@
-import { GridManager } from '../../js/managers/GridManager.js';
+import { GridManager } from '../../src/managers/GridManager.js';
 import { GRID_CONFIG, TERRAIN_TYPES } from '../../js/config/GridConfig.js';
 import { createMockEntity } from '../test-utils/helpers.js';
 import { mockCanvas, mockContext } from '../setup.js';

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Hero } from '../../js/entities/Hero.js';
+import { Hero } from '../../src/entities/Hero.js';
 import { ANIMATION_CONFIG } from '../../js/config/AnimationConfig.js'; // Import the real config
 import { GRID_CONFIG } from '../../js/config/GridConfig.js'; // Import grid config
 

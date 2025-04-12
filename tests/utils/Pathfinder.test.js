@@ -1,6 +1,6 @@
 // tests/utils/Pathfinder.test.js
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Pathfinder } from '../../js/utils/Pathfinder.js';
+import Pathfinder from '../../src/utils/Pathfinder.js';
 import { GRID_CONFIG } from '../../js/config/GridConfig.js'; // For cell size
 
 // Mock GridManager for controlled testing

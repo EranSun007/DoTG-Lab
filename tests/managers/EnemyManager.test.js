@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createMockGameState } from '../test-utils/helpers.js';
-import { EnemyManager } from '../../js/managers/EnemyManager.js';
+import { EnemyManager } from '../../src/managers/EnemyManager.js';
 import { Enemy } from '../../js/entities/Enemy.js';
 import { WaveConfig } from '../../js/config/WaveConfig.js';
 
