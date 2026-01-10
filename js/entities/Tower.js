@@ -7,8 +7,10 @@ import { TowerConfig } from '../config/TowerConfig.js';
 export class Tower extends Entity {
     constructor(data) {
         super(data);
-        const config = TowerConfig[data.type] || TowerConfig.ranged;
-        
+        // Fallback to the first available tower config if specific type or 'ranged' is missing
+        const firstKey = Object.keys(TowerConfig)[0];
+        const config = TowerConfig[data.type] || TowerConfig.ranged || TowerConfig[firstKey] || {};
+
         this.type = data.type || 'ranged';
         this.range = data.range || config.range;
         this.damage = data.damage || config.damage;
@@ -23,6 +25,37 @@ export class Tower extends Entity {
         this.projectileType = data.projectileType || config.projectileType;
         this.level = 1;
         this.cost = data.cost || config.cost;
+
+        // Operational States
+        this.states = data.states || config.states || [
+            { name: "Standard", angle: 360, range: this.range, attackSpeed: this.attackSpeed, damage: this.damage }
+        ];
+        this.activeStateIndex = data.activeStateIndex !== undefined ? data.activeStateIndex : 0;
+        this.targetAngle = data.targetAngle !== undefined ? data.targetAngle : 0; // In radians
+
+        // Apply initial state stats
+        this.applyActiveState();
+    }
+
+    applyActiveState() {
+        const state = this.states[this.activeStateIndex];
+        if (!state) return;
+
+        this.shootingAngle = state.angle; // In degrees
+        this.range = state.range;
+        this.attackSpeed = state.attackSpeed;
+        this.damage = state.damage;
+    }
+
+    setState(index) {
+        if (index >= 0 && index < this.states.length) {
+            this.activeStateIndex = index;
+            this.applyActiveState();
+        }
+    }
+
+    setTargetAngle(angle) {
+        this.targetAngle = angle;
     }
 
     getAssetType() {
@@ -37,7 +70,9 @@ export class Tower extends Entity {
             width: this.width,
             height: this.height,
             rotation: this.rotation || 0,
-            range: this.range
+            range: this.range,
+            shootingAngle: this.shootingAngle,
+            targetAngle: this.targetAngle
         };
     }
 
@@ -45,12 +80,30 @@ export class Tower extends Entity {
         let nearest = null;
         let minDistance = this.range;
 
+        const centerX = this.x + this.width / 2;
+        const centerY = this.y + this.height / 2;
+
         enemies.forEach(enemy => {
-            const dx = enemy.x - (this.x + this.width / 2);
-            const dy = enemy.y - (this.y + this.height / 2);
+            const dx = enemy.x - centerX;
+            const dy = enemy.y - centerY;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            
+
             if (distance < minDistance) {
+                // Check if within shooting angle
+                if (this.shootingAngle < 360) {
+                    const angleToEnemy = Math.atan2(dy, dx);
+                    let diff = angleToEnemy - this.targetAngle;
+
+                    // Normalize diff to [-PI, PI]
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+
+                    const shootingAngleRad = (this.shootingAngle * Math.PI) / 180;
+                    if (Math.abs(diff) > shootingAngleRad / 2) {
+                        return; // Outside the arc
+                    }
+                }
+
                 minDistance = distance;
                 nearest = enemy;
             }
@@ -61,12 +114,17 @@ export class Tower extends Entity {
 
     attack(target, projectileManager) {
         if (!target) return;
-        
+
+        // Update rotation to face target (even if targetAngle is fixed, the sprite might rotate)
+        const dx = target.x - (this.x + this.width / 2);
+        const dy = target.y - (this.y + this.height / 2);
+        this.rotation = Math.atan2(dy, dx);
+
         // If no ProjectileManager is provided, do direct damage
         if (!projectileManager) {
             // Check cooldown for direct damage
             if (this.cooldown > 0) return;
-            
+
             target.health -= this.damage;
             this.lastAttackTime = Date.now();
             this.cooldown = 1000 / this.attackSpeed; // Convert to milliseconds
@@ -110,6 +168,15 @@ export class Tower extends Entity {
         this.range *= 1.2;
         this.damage *= 1.3;
         this.attackSpeed *= 1.1;
+
+        // Also upgrade state values if we want them to scale
+        this.states.forEach(state => {
+            state.range *= 1.2;
+            state.damage *= 1.3;
+            state.attackSpeed *= 1.1;
+        });
+
+        this.applyActiveState();
     }
 
     getState() {
@@ -126,7 +193,10 @@ export class Tower extends Entity {
             splashDamage: this.splashDamage,
             projectileType: this.projectileType,
             lastAttackTime: this.lastAttackTime,
-            level: this.level
+            level: this.level,
+            states: JSON.parse(JSON.stringify(this.states)),
+            activeStateIndex: this.activeStateIndex,
+            targetAngle: this.targetAngle
         };
     }
 
@@ -143,5 +213,9 @@ export class Tower extends Entity {
         this.projectileType = state.projectileType;
         this.lastAttackTime = state.lastAttackTime;
         this.level = state.level;
+        this.states = state.states;
+        this.activeStateIndex = state.activeStateIndex !== undefined ? state.activeStateIndex : 0;
+        this.targetAngle = state.targetAngle !== undefined ? state.targetAngle : 0;
+        this.applyActiveState();
     }
 } 

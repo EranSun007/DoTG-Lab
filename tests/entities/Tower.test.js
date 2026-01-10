@@ -90,25 +90,48 @@ describe('Tower', () => {
   });
 
   describe('state management', () => {
+    it('should switch between states and update stats', () => {
+      const initialDamage = tower.damage;
+      tower.setState(1); // Focus 180
+      expect(tower.activeStateIndex).toBe(1);
+      expect(tower.damage).toBe(TowerConfig.ranged.states[1].damage);
+      expect(tower.damage).not.toBe(initialDamage);
+    });
+
+    it('should respect shooting angle in targeting', () => {
+      const centerX = tower.x + tower.width / 2;
+      const centerY = tower.y + tower.height / 2;
+
+      tower.setState(2); // Sniping 90
+      tower.setTargetAngle(0); // Right
+
+      const enemyInArc = createMockEnemy('basic', { x: centerX + 50, y: centerY }); // Directly right
+      const enemyOutOfArc = createMockEnemy('basic', { x: centerX, y: centerY + 50 }); // Directly down
+
+      expect(tower.findTarget([enemyInArc])).toBe(enemyInArc);
+      expect(tower.findTarget([enemyOutOfArc])).toBeNull();
+    });
+
     it('should serialize state correctly', () => {
       const state = tower.getState();
       expect(state).toMatchObject({
         id: tower.id,
         type: 'tower',
-        x: tower.x,
-        y: tower.y,
-        range: tower.range,
-        damage: tower.damage,
-        attackSpeed: tower.attackSpeed,
-        lastAttackTime: tower.lastAttackTime,
+        states: tower.states,
+        activeStateIndex: tower.activeStateIndex,
+        targetAngle: tower.targetAngle
       });
     });
 
     it('should restore state correctly', () => {
+      tower.setState(1);
+      tower.setTargetAngle(1.5);
       const state = tower.getState();
       const newTower = new Tower({ x: 0, y: 0, type: 'ranged' });
       newTower.syncState(state);
       expect(newTower.getState()).toEqual(state);
+      expect(newTower.activeStateIndex).toBe(1);
+      expect(newTower.targetAngle).toBe(1.5);
     });
   });
 

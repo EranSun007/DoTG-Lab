@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,6 +19,7 @@
             color: #ffffff;
             font-family: Arial, sans-serif;
         }
+
         #game-container {
             position: relative;
             display: flex;
@@ -25,9 +27,11 @@
             align-items: center;
             gap: 10px;
         }
+
         canvas {
             border: 1px solid #333;
         }
+
         #ui-overlay {
             position: absolute;
             top: 10px;
@@ -36,6 +40,7 @@
             gap: 20px;
             font-size: 18px;
         }
+
         #loading-overlay {
             position: fixed;
             top: 0;
@@ -52,11 +57,13 @@
             transition: opacity 0.3s ease-out;
             opacity: 1;
         }
+
         #loading-overlay.hidden {
             opacity: 0;
             pointer-events: none;
             visibility: hidden;
         }
+
         #tower-controls {
             position: absolute;
             bottom: 10px;
@@ -65,6 +72,7 @@
             display: flex;
             gap: 10px;
         }
+
         button {
             padding: 8px 16px;
             background-color: #333;
@@ -74,14 +82,17 @@
             cursor: pointer;
             transition: all 0.2s ease;
         }
+
         button:hover {
             background-color: #444;
         }
+
         button:disabled {
             background-color: #222;
             cursor: not-allowed;
             opacity: 0.7;
         }
+
         button.selected {
             background-color: #666;
             box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
@@ -90,27 +101,59 @@
 
         /* Visual Feedback Effects */
         @keyframes flash {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
         }
 
         @keyframes damage-flash {
-            0% { color: #ffffff; }
-            50% { color: #ff4444; }
-            100% { color: #ffffff; }
+            0% {
+                color: #ffffff;
+            }
+
+            50% {
+                color: #ff4444;
+            }
+
+            100% {
+                color: #ffffff;
+            }
         }
 
         @keyframes gold-increase {
-            0% { color: #ffffff; }
-            50% { color: #44ff44; }
-            100% { color: #ffffff; }
+            0% {
+                color: #ffffff;
+            }
+
+            50% {
+                color: #44ff44;
+            }
+
+            100% {
+                color: #ffffff;
+            }
         }
 
         @keyframes gold-decrease {
-            0% { color: #ffffff; }
-            50% { color: #ff4444; }
-            100% { color: #ffffff; }
+            0% {
+                color: #ffffff;
+            }
+
+            50% {
+                color: #ff4444;
+            }
+
+            100% {
+                color: #ffffff;
+            }
         }
 
         .clicked {
@@ -137,42 +180,153 @@
             animation: flash 0.5s ease;
         }
 
-        /* Debug Mode Styles */
-        .debug-mode #ui-overlay {
-            border: 1px solid #ff4444;
-            padding: 5px;
-            background-color: rgba(255, 68, 68, 0.1);
+        /* Lab Panel Styles */
+        #creator-panel {
+            position: fixed;
+            right: 0;
+            top: 0;
+            width: 350px;
+            height: 100vh;
+            background: rgba(26, 26, 26, 0.95);
+            border-left: 1px solid #333;
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            /* overflow-y: auto; Removed to prevent clipping of negative left button */
+            /* padding: 20px; Moved to inner container */
+            box-sizing: border-box;
+            backdrop-filter: blur(10px);
         }
 
-        .debug-mode button {
-            border: 1px solid #44ff44;
+        .panel-content {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
-        .debug-mode button.selected {
-            border-color: #ffff44;
+        #creator-panel.collapsed {
+            transform: translateX(100%);
+        }
+
+        #lab-toggle {
+            position: absolute;
+            left: -40px;
+            top: 20px;
+            width: 40px;
+            height: 40px;
+            background: #44ff44;
+            color: black;
+            border: none;
+            border-radius: 4px 0 0 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3);
+            z-index: 1001;
+        }
+
+        #game-view {
+            width: 100%;
+            height: 100vh;
+            background: #111;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+        }
+
+        #game-container {
+            position: relative;
+            background: #000;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        /* Lab Loading Overlay */
+        .lab-loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            backdrop-filter: blur(2px);
+        }
+
+        .lab-loading-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(68, 255, 68, 0.1);
+            border-left-color: #44ff44;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
+
 <body>
-    <div id="game-container">
-        <div id="loading-overlay">
-            <div class="loading-content">
-                Loading assets...
-                <div class="loading-progress"></div>
+    <div id="app-container" style="display: flex; width: 100%; height: 100vh; overflow: hidden; position: relative;">
+        <!-- Game View -->
+        <div id="game-view">
+            <div id="game-container">
+                <div id="loading-overlay">
+                    <div class="loading-content">
+                        Loading assets...
+                        <div class="loading-progress"></div>
+                    </div>
+                </div>
+                <!-- UI Overlay is absolutely positioned over canvas -->
+                <div id="ui-overlay" style="position: absolute; top: 10px; left: 10px; pointer-events: none;">
+                    <span id="gold-display" style="margin-right: 20px;">Gold: 100</span>
+                    <span id="lives-display" style="margin-right: 20px;">Lives: 10</span>
+                    <span id="wave-number-display">Wave: 1</span>
+                </div>
+                <canvas id="gameCanvas"></canvas>
+                <!-- Controls overlay -->
+                <div id="tower-controls"
+                    style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);">
+                    <button id="start-wave-button">Start Wave</button>
+                    <!-- Tower buttons will be generated dynamically -->
+                </div>
             </div>
         </div>
-        <div id="ui-overlay">
-            <span id="gold-display">Gold: 100</span>
-            <span id="lives-display">Lives: 10</span>
-            <span id="wave-number-display">Wave: 1</span>
-        </div>
-        <canvas id="gameCanvas"></canvas>
-        <div id="tower-controls">
-            <button id="start-wave-button">Start Wave</button>
-            <button id="select-tower-ranged">Ranged Tower</button>
-            <button id="select-tower-aoe">AOE Tower</button>
+
+        <!-- Creator Panel Overlay -->
+        <div id="creator-panel" class="">
+            <button id="lab-toggle" title="Toggle Lab Panel">✖</button>
+            <div class="panel-content">
+                <h2 style="margin-top: 0; color: #44ff44; border-bottom: 2px solid #44ff44; padding-bottom: 10px;">God
+                    Lab
+                    🧪</h2>
+                <div id="lab-controls">
+                    <p style="color: #666; font-style: italic;">Initializing Lab Protocol...</p>
+                </div>
+            </div>
         </div>
     </div>
     <script type="module" src="js/main.js"></script>
 </body>
-</html> 
+
+</html>

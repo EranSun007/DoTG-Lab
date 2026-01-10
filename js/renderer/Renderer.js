@@ -7,7 +7,7 @@ export class Renderer {
         this.canvas = canvas;
         this.ctx = typeof canvas.getContext === 'function' ? canvas.getContext('2d') : canvas;
         this.assetLoader = assetLoader;
-        
+
         // Initialize default rendering options
         this.debug = false;
         this.showGrid = false;
@@ -88,7 +88,7 @@ export class Renderer {
 
         // Get sprite from asset loader
         const sprite = this.assetLoader.get(drawData.type);
-        
+
         if (sprite) {
             // Draw sprite
             this.ctx.drawImage(
@@ -134,7 +134,7 @@ export class Renderer {
         const entityGroups = {};
         entities.forEach(entity => {
             if (!entity || typeof entity.getDrawData !== 'function') return;
-            
+
             const drawData = entity.getDrawData();
             if (!drawData) return;
 
@@ -148,9 +148,9 @@ export class Renderer {
         // Draw each group
         Object.entries(entityGroups).forEach(([type, group]) => {
             const sprite = this.assetLoader.get(type);
-            
+
             this.ctx.save();
-            
+
             if (sprite) {
                 group.forEach(drawData => {
                     this.ctx.drawImage(sprite, drawData.x, drawData.y, drawData.width, drawData.height);
@@ -163,29 +163,54 @@ export class Renderer {
                     this.ctx.fillRect(drawData.x, drawData.y, drawData.width, drawData.height);
                 });
             }
-            
+
             this.ctx.restore();
         });
     }
 
     drawRangeIndicator(drawData) {
+        const centerX = drawData.x + drawData.width / 2;
+        const centerY = drawData.y + drawData.height / 2;
+        const radius = drawData.range;
+        const shootingAngle = drawData.shootingAngle || 360;
+        const targetAngle = drawData.targetAngle || 0;
+
         this.ctx.beginPath();
-        this.ctx.arc(
-            drawData.x + drawData.width / 2,
-            drawData.y + drawData.height / 2,
-            drawData.range,
-            0,
-            Math.PI * 2
-        );
-        
+
+        if (shootingAngle >= 360) {
+            this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        } else {
+            const halfAngleRad = (shootingAngle * Math.PI) / 180 / 2;
+            const startAngle = targetAngle - halfAngleRad;
+            const endAngle = targetAngle + halfAngleRad;
+
+            this.ctx.moveTo(centerX, centerY);
+            this.ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+            this.ctx.closePath();
+        }
+
         // Get the appropriate color based on entity type
-        const colorKey = drawData.type.startsWith('TOWER_') ? 'TOWER' : 
-                        drawData.type.startsWith('HERO_') ? 'HERO' : 'TOWER';
-        
+        const colorKey = drawData.type.startsWith('TOWER_') ? 'TOWER' :
+            drawData.type.startsWith('HERO_') ? 'HERO' : 'TOWER';
+
         this.ctx.fillStyle = GameConstants.RANGE_INDICATOR_COLORS[`${colorKey}_FILL`];
         this.ctx.fill();
         this.ctx.strokeStyle = GameConstants.RANGE_INDICATOR_COLORS[colorKey];
         this.ctx.stroke();
+
+        // Draw center line for partial arcs
+        if (shootingAngle < 360) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(centerX, centerY);
+            this.ctx.lineTo(
+                centerX + Math.cos(targetAngle) * radius,
+                centerY + Math.sin(targetAngle) * radius
+            );
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+        }
     }
 
     drawHealthBar(drawData) {
@@ -248,7 +273,7 @@ export class Renderer {
         this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
         entities.forEach(entity => {
             if (!entity || typeof entity.getDrawData !== 'function') return;
-            
+
             const drawData = entity.getDrawData();
             if (drawData) {
                 this.ctx.strokeRect(drawData.x, drawData.y, drawData.width, drawData.height);

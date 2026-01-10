@@ -1,7 +1,7 @@
-export const GRID_CONFIG = {
+export const GridConfig = {
     CELL_SIZE: 32,
-    GRID_WIDTH: 32,
-    GRID_HEIGHT: 32,
+    GRID_WIDTH: 40,
+    GRID_HEIGHT: 23,
     LINE_COLOR: 'rgba(255, 255, 255, 0.1)',
     HOVER_COLOR: 'rgba(255, 255, 255, 0.2)',
     DEBUG_TEXT_COLOR: 'white',

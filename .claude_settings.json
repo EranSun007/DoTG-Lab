@@ -1,0 +1,34 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)",
+      "Write(./**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Read(C:\\Users\\Oded\\Documents\\Git\\DoTG/**)",
+      "Write(C:\\Users\\Oded\\Documents\\Git\\DoTG/**)",
+      "Edit(C:\\Users\\Oded\\Documents\\Git\\DoTG/**)",
+      "Glob(C:\\Users\\Oded\\Documents\\Git\\DoTG/**)",
+      "Grep(C:\\Users\\Oded\\Documents\\Git\\DoTG/**)",
+      "Read(C:\\Users\\Oded\\Documents\\Git\\DoTG\\.auto-claude\\roadmap/**)",
+      "Write(C:\\Users\\Oded\\Documents\\Git\\DoTG\\.auto-claude\\roadmap/**)",
+      "Edit(C:\\Users\\Oded\\Documents\\Git\\DoTG\\.auto-claude\\roadmap/**)",
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__context7__resolve-library-id(*)",
+      "mcp__context7__get-library-docs(*)",
+      "mcp__graphiti-memory__search_nodes(*)",
+      "mcp__graphiti-memory__search_facts(*)",
+      "mcp__graphiti-memory__add_episode(*)",
+      "mcp__graphiti-memory__get_episodes(*)",
+      "mcp__graphiti-memory__get_entity_edge(*)"
+    ]
+  }
+}

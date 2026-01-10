@@ -1,4 +1,4 @@
-import { GRID_CONFIG, TERRAIN_TYPES } from '../config/GridConfig.js';
+import { GridConfig, TERRAIN_TYPES } from '../config/GridConfig.js';
 
 export class GridManager {
     constructor() {
@@ -8,9 +8,9 @@ export class GridManager {
     }
 
     initializeGrid() {
-        for (let y = 0; y < GRID_CONFIG.GRID_HEIGHT; y++) {
+        for (let y = 0; y < GridConfig.GRID_HEIGHT; y++) {
             this.cells[y] = [];
-            for (let x = 0; x < GRID_CONFIG.GRID_WIDTH; x++) {
+            for (let x = 0; x < GridConfig.GRID_WIDTH; x++) {
                 this.cells[y][x] = {
                     x,
                     y,
@@ -23,9 +23,9 @@ export class GridManager {
     }
 
     getCellFromScreenPosition(screenX, screenY) {
-        const gridX = Math.floor(screenX / GRID_CONFIG.CELL_SIZE);
-        const gridY = Math.floor(screenY / GRID_CONFIG.CELL_SIZE);
-        
+        const gridX = Math.floor(screenX / GridConfig.CELL_SIZE);
+        const gridY = Math.floor(screenY / GridConfig.CELL_SIZE);
+
         if (this.isValidCell(gridX, gridY)) {
             return this.cells[gridY][gridX];
         }
@@ -34,14 +34,14 @@ export class GridManager {
 
     getScreenPositionFromCell(cell) {
         return {
-            x: cell.x * GRID_CONFIG.CELL_SIZE,
-            y: cell.y * GRID_CONFIG.CELL_SIZE
+            x: cell.x * GridConfig.CELL_SIZE,
+            y: cell.y * GridConfig.CELL_SIZE
         };
     }
 
     isValidCell(x, y) {
-        return x >= 0 && x < GRID_CONFIG.GRID_WIDTH &&
-               y >= 0 && y < GRID_CONFIG.GRID_HEIGHT;
+        return x >= 0 && x < GridConfig.GRID_WIDTH &&
+            y >= 0 && y < GridConfig.GRID_HEIGHT;
     }
 
     setCellTerrain(x, y, terrainType) {
@@ -70,34 +70,34 @@ export class GridManager {
 
     draw(ctx) {
         // Draw grid lines
-        ctx.strokeStyle = GRID_CONFIG.LINE_COLOR;
+        ctx.strokeStyle = GridConfig.LINE_COLOR;
         ctx.lineWidth = 1;
 
         // Draw vertical lines
-        for (let x = 0; x <= GRID_CONFIG.GRID_WIDTH; x++) {
+        for (let x = 0; x <= GridConfig.GRID_WIDTH; x++) {
             ctx.beginPath();
-            ctx.moveTo(x * GRID_CONFIG.CELL_SIZE, 0);
-            ctx.lineTo(x * GRID_CONFIG.CELL_SIZE, GRID_CONFIG.GRID_HEIGHT * GRID_CONFIG.CELL_SIZE);
+            ctx.moveTo(x * GridConfig.CELL_SIZE, 0);
+            ctx.lineTo(x * GridConfig.CELL_SIZE, GridConfig.GRID_HEIGHT * GridConfig.CELL_SIZE);
             ctx.stroke();
         }
 
         // Draw horizontal lines
-        for (let y = 0; y <= GRID_CONFIG.GRID_HEIGHT; y++) {
+        for (let y = 0; y <= GridConfig.GRID_HEIGHT; y++) {
             ctx.beginPath();
-            ctx.moveTo(0, y * GRID_CONFIG.CELL_SIZE);
-            ctx.lineTo(GRID_CONFIG.GRID_WIDTH * GRID_CONFIG.CELL_SIZE, y * GRID_CONFIG.CELL_SIZE);
+            ctx.moveTo(0, y * GridConfig.CELL_SIZE);
+            ctx.lineTo(GridConfig.GRID_WIDTH * GridConfig.CELL_SIZE, y * GridConfig.CELL_SIZE);
             ctx.stroke();
         }
 
         // Draw hover effect
         if (this.hoveredCell) {
             const pos = this.getScreenPositionFromCell(this.hoveredCell);
-            ctx.fillStyle = GRID_CONFIG.HOVER_COLOR;
+            ctx.fillStyle = GridConfig.HOVER_COLOR;
             ctx.fillRect(
                 pos.x,
                 pos.y,
-                GRID_CONFIG.CELL_SIZE,
-                GRID_CONFIG.CELL_SIZE
+                GridConfig.CELL_SIZE,
+                GridConfig.CELL_SIZE
             );
         }
     }

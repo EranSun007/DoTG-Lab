@@ -71,7 +71,7 @@ export class UIManager {
         const element = this.elements.get(elementId);
         if (element) {
             element.addEventListener(eventType, handler);
-            
+
             // Store handler for cleanup
             if (!this.eventHandlers.has(elementId)) {
                 this.eventHandlers.set(elementId, []);
@@ -87,7 +87,7 @@ export class UIManager {
     removeEventHandlers(elementId) {
         const element = this.elements.get(elementId);
         const handlers = this.eventHandlers.get(elementId);
-        
+
         if (element && handlers) {
             handlers.forEach(({ type, handler }) => {
                 element.removeEventListener(type, handler);
@@ -163,14 +163,49 @@ export class UIManager {
         this.livesDisplay = elements.livesDisplay;
         this.waveNumberDisplay = elements.waveNumberDisplay;
         this.startWaveButton = elements.startWaveButton;
-        this.towerButtons.set('ranged', elements.towerButtons.ranged);
-        this.towerButtons.set('aoe', elements.towerButtons.aoe);
 
         // Set up event listeners
         this.setupEventListeners();
 
         // Add debug mode toggle
         this.setupDebugMode();
+    }
+
+    createTowerButtons(towerConfig, onSelectHandler) {
+        const container = document.getElementById('tower-controls');
+        // Keep start wave button, remove others (or actually, we might want to clear and re-append start button?)
+        // The structure in index.html has start-wave-button inside tower-controls.
+        // Let's preserve the start wave button if it's there.
+
+        // Better approach: The start wave button might need to be kept separate if we want to clear the container.
+        // Or we can just remove all existing tower buttons (which we don't know ids of easily unless we track them).
+        // Let's clear the container but re-append the start wave button if we have a reference.
+
+        if (!container) return;
+
+        // Save start button if it exists in container
+        const startBtn = document.getElementById('start-wave-button');
+
+        container.innerHTML = '';
+        if (startBtn) {
+            container.appendChild(startBtn);
+            // Re-bind click because removing from DOM might not break reference but good to be safe
+            // Actually reusing the element reference preserves listeners usually.
+        }
+
+        this.towerButtonHandlers.select = onSelectHandler;
+        this.towerButtons.clear();
+
+        Object.keys(towerConfig).forEach(type => {
+            const btn = document.createElement('button');
+            btn.textContent = towerConfig[type].name; // Use name from config
+            btn.onclick = () => {
+                onSelectHandler(type);
+            };
+
+            container.appendChild(btn);
+            this.towerButtons.set(type, btn);
+        });
     }
 
     // Set up debug mode
@@ -186,15 +221,6 @@ export class UIManager {
 
     // Set up event listeners
     setupEventListeners() {
-        // Tower button click handlers
-        this.towerButtons.forEach((button, type) => {
-            button.addEventListener('click', () => {
-                if (this.towerButtonHandlers[type]) {
-                    this.towerButtonHandlers[type]();
-                }
-            });
-        });
-
         // Start wave button click handler
         if (this.startWaveButton) {
             this.startWaveButton.addEventListener('click', () => {
@@ -208,14 +234,14 @@ export class UIManager {
     // Visual feedback methods
     flashButton(button, className) {
         if (!button) return;
-        
+
         button.classList.add(className);
         setTimeout(() => button.classList.remove(className), UIConfig.ANIMATIONS.BUTTON_FLASH);
     }
 
     flashDamage(element) {
         if (!element) return;
-        
+
         element.classList.add('damage-flash');
         setTimeout(() => element.classList.remove('damage-flash'), UIConfig.ANIMATIONS.DAMAGE_FLASH);
     }
@@ -225,7 +251,7 @@ export class UIManager {
         if (this.goldDisplay) {
             const oldAmount = parseInt(this.goldDisplay.textContent.split(': ')[1]) || 0;
             this.goldDisplay.textContent = `${UILabels.STATUS.GOLD}${amount}`;
-            
+
             // Visual feedback for gold changes
             if (amount > oldAmount) {
                 this.flashButton(this.goldDisplay, 'gold-increase');
@@ -239,7 +265,7 @@ export class UIManager {
         if (this.livesDisplay) {
             const oldCount = parseInt(this.livesDisplay.textContent.split(': ')[1]) || 0;
             this.livesDisplay.textContent = `${UILabels.STATUS.LIVES}${count}`;
-            
+
             // Visual feedback for life changes
             if (count < oldCount) {
                 this.flashDamage(this.livesDisplay);
@@ -285,7 +311,7 @@ export class UIManager {
     // Debug methods
     logUIState() {
         if (!this.isDebugMode) return;
-        
+
         const state = this.getState();
         Debug.log('UI State Debug', {
             currentState: state,
@@ -318,11 +344,11 @@ export class UIManager {
     // Validate UI state
     validateState(state) {
         const issues = [];
-        
+
         if (state.gold < 0) issues.push('Gold cannot be negative');
         if (state.lives < 0) issues.push('Lives cannot be negative');
         if (state.waveNumber < 1) issues.push('Wave number must be at least 1');
-        
+
         if (issues.length > 0) {
             Debug.log('UI State Validation Issues:', issues);
         }
@@ -340,7 +366,7 @@ export class UIManager {
         this.updateLives(state.lives);
         this.updateWaveNumber(state.waveNumber);
         this.toggleStartWaveButton(state.startWaveEnabled);
-        
+
         if (state.selectedTower) {
             this.setSelectedTower(state.selectedTower);
         }
@@ -376,5 +402,120 @@ export class UIManager {
         setTimeout(() => {
             errorElement.style.display = 'none';
         }, UIConfig.ANIMATIONS.ERROR_DISPLAY);
+    }
+
+    showTowerInfo(tower, callbacks = {}) {
+        let infoPanel = document.getElementById('tower-info-panel');
+        if (!infoPanel) {
+            infoPanel = document.createElement('div');
+            infoPanel.id = 'tower-info-panel';
+            infoPanel.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 15px;
+                border-radius: 8px;
+                border: 1px solid #444;
+                width: 250px;
+                z-index: 1000;
+                font-family: Arial, sans-serif;
+                box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            `;
+            document.body.appendChild(infoPanel);
+        }
+
+        const upgradeCost = Math.floor(tower.cost * 1.5 * tower.level);
+        const sellValue = Math.floor(tower.cost * 0.7 * tower.level); // Simplistic sell value for now
+
+        infoPanel.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #444; padding-bottom:10px; margin-bottom:10px;">
+                <h3 style="margin:0; color:${tower.color || '#44ff44'};">${tower.type.toUpperCase()} LVL ${tower.level}</h3>
+                <button id="close-panel" style="background:none; border:none; color:#888; cursor:pointer; font-size:16px;">✖</button>
+            </div>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; margin-bottom:15px; font-size:14px;">
+                <div>Damage: <span style="color:#ff8888">${Math.round(tower.damage)}</span></div>
+                <div>Range: <span style="color:#8888ff">${Math.round(tower.range)}</span></div>
+                <div>Speed: <span style="color:#ffff88">${tower.attackSpeed.toFixed(1)}/s</span></div>
+                <div>Kills: <span style="color:#ffffff">${tower.kills || 0}</span></div>
+            </div>
+
+            <div style="margin-bottom:15px;">
+                <strong style="font-size:12px; color:#aaa;">OPERATIONAL MODES</strong>
+                <div id="state-buttons" style="display:flex; flex-direction:column; gap:5px; margin-top:5px;"></div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button id="upgrade-btn" style="flex:1; padding:8px; background:#4444ff; color:white; border:none; border-radius:4px; cursor:pointer;">
+                    Upgrade (${upgradeCost}g)
+                </button>
+                <button id="sell-btn" style="flex:1; padding:8px; background:#ff4444; color:white; border:none; border-radius:4px; cursor:pointer;">
+                    Sell (${sellValue}g)
+                </button>
+            </div>
+            
+            <p style="font-size:10px; color:#888; margin-top:10px; text-align:center;">Hold ALT + Click to set direction</p>
+        `;
+
+        // Close Button
+        infoPanel.querySelector('#close-panel').onclick = () => {
+            if (callbacks.onClose) callbacks.onClose();
+            this.hideTowerInfo();
+        };
+
+        // State Buttons
+        const stateContainer = infoPanel.querySelector('#state-buttons');
+        tower.states.forEach((state, index) => {
+            const btn = document.createElement('button');
+            btn.textContent = state.name;
+            btn.style.cssText = `
+                padding: 6px;
+                background: ${index === tower.activeStateIndex ? '#4444ff' : '#222'};
+                color: ${index === tower.activeStateIndex ? 'white' : '#aaa'};
+                border: 1px solid #444;
+                border-radius: 4px;
+                cursor: pointer;
+                text-align: left;
+                font-size: 12px;
+                transition: all 0.2s;
+            `;
+            btn.onmouseover = () => btn.style.background = index === tower.activeStateIndex ? '#5555ff' : '#333';
+            btn.onmouseout = () => btn.style.background = index === tower.activeStateIndex ? '#4444ff' : '#222';
+            btn.onclick = () => {
+                tower.setState(index);
+                this.showTowerInfo(tower, callbacks); // Refresh panel to show active state
+            };
+            stateContainer.appendChild(btn);
+        });
+
+        // ACTION BUTTONS HANDLERS
+        const upgradeBtn = infoPanel.querySelector('#upgrade-btn');
+        const sellBtn = infoPanel.querySelector('#sell-btn');
+
+        if (callbacks.canUpgrade && !callbacks.canUpgrade(upgradeCost)) {
+            upgradeBtn.disabled = true;
+            upgradeBtn.style.opacity = '0.5';
+            upgradeBtn.style.cursor = 'not-allowed';
+            upgradeBtn.textContent = `Need ${upgradeCost}g`;
+        } else {
+            upgradeBtn.onclick = () => {
+                if (callbacks.onUpgrade) callbacks.onUpgrade(tower);
+            };
+        }
+
+        sellBtn.onclick = () => {
+            if (callbacks.onSell) callbacks.onSell(tower);
+        };
+
+        infoPanel.style.display = 'block';
+    }
+
+    hideTowerInfo() {
+        const infoPanel = document.getElementById('tower-info-panel');
+        if (infoPanel) {
+            infoPanel.style.display = 'none';
+        }
     }
 } 

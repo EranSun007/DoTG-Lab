@@ -1,23 +1,25 @@
 import { Game } from './Game.js';
 import { UIManager } from './managers/UIManager.js';
 import { GameConstants } from './config/GameConstants.js';
+import { LabManager } from './lab/LabManager.js';
 
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        const loadingOverlay = document.getElementById('loading-overlay');
+        if (loadingOverlay) {
+            const content = loadingOverlay.querySelector('.loading-content');
+            if (content) content.childNodes[0].nodeValue = "Initializing Game Logic... ";
+        }
         console.log('DOM loaded, initializing game...');
-        
+
         // Initialize UI Manager
         const uiManager = new UIManager();
         uiManager.init({
             goldDisplay: document.getElementById('gold-display'),
             livesDisplay: document.getElementById('lives-display'),
             waveNumberDisplay: document.getElementById('wave-number-display'),
-            startWaveButton: document.getElementById('start-wave-button'),
-            towerButtons: {
-                ranged: document.getElementById('select-tower-ranged'),
-                aoe: document.getElementById('select-tower-aoe')
-            }
+            startWaveButton: document.getElementById('start-wave-button')
         });
 
         // Get canvas element
@@ -33,24 +35,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Create and initialize game
         console.log('Creating game instance...');
         const game = new Game(canvas, uiManager);
-        
+
         // Store game instance for debugging
         window.game = game;
         canvas.__game = game;
-        
+
+        // Initialize Lab Manager (Creator Panel)
+        console.log('Initializing Lab Protocol...');
+        const labManager = new LabManager(game);
+        window.labManager = labManager; // Expose for debugging
+
         console.log('Starting game initialization...');
         await game.initialize().catch(error => {
             console.error('Game initialization failed:', error);
             throw error;
         });
-        
+
         console.log('Game initialization successful');
 
         // Bind UI event handlers
-        uiManager.bindTowerButtons({
-            ranged: () => game.selectTower('ranged'),
-            aoe: () => game.selectTower('aoe')
-        });
+        // Tower buttons are bound dynamically in Game.init()
+
 
         uiManager.bindStartWave(() => game.startWave());
 
@@ -59,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         uiManager.updateLives(game.lives);
         uiManager.updateWaveNumber(game.currentWave);
         uiManager.toggleStartWaveButton(game.canStartWave);
-        
+
         console.log('Game setup complete');
     } catch (error) {
         console.error('Failed to start game:', error);
