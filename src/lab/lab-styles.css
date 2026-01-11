@@ -1,0 +1,498 @@
+/**
+ * God Lab Stylesheet
+ * Centralized styles for the Lab UI with CSS variables
+ */
+
+/* ========================================
+   CSS Variables
+   ======================================== */
+:root {
+    /* Colors */
+    --lab-bg: #1a1a1a;
+    --lab-bg-section: #2a2a2a;
+    --lab-bg-section-collapsed: #222;
+    --lab-bg-input: #333;
+    --lab-border: #444;
+    --lab-border-hover: #555;
+
+    /* Accent Colors */
+    --lab-accent-green: #44ff44;
+    --lab-accent-blue: #4444ff;
+    --lab-accent-yellow: #ffaa44;
+    --lab-accent-red: #ff4444;
+    --lab-accent-purple: #aa44ff;
+    --lab-accent-cyan: #44aaff;
+
+    /* Text Colors */
+    --lab-text-primary: #ffffff;
+    --lab-text-secondary: #aaa;
+    --lab-text-tertiary: #888;
+    --lab-text-muted: #666;
+
+    /* Spacing */
+    --lab-space-xs: 4px;
+    --lab-space-sm: 8px;
+    --lab-space-md: 12px;
+    --lab-space-lg: 16px;
+    --lab-space-xl: 24px;
+
+    /* Typography */
+    --lab-font-xs: 10px;
+    --lab-font-sm: 11px;
+    --lab-font-base: 12px;
+    --lab-font-md: 14px;
+    --lab-font-lg: 16px;
+
+    /* Font Weights */
+    --lab-font-normal: 400;
+    --lab-font-medium: 500;
+    --lab-font-bold: 600;
+
+    /* Timing */
+    --lab-duration-fast: 150ms;
+    --lab-duration-normal: 250ms;
+    --lab-duration-slow: 350ms;
+
+    /* Easing */
+    --lab-ease-out: cubic-bezier(0.2, 0, 0, 1);
+    --lab-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========================================
+   Button System
+   ======================================== */
+.lab-btn {
+    padding: var(--lab-space-sm) var(--lab-space-md);
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: var(--lab-font-base);
+    font-weight: var(--lab-font-medium);
+    transition: all var(--lab-duration-fast) var(--lab-ease-out);
+    font-family: inherit;
+}
+
+.lab-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.lab-btn:active {
+    transform: translateY(0);
+}
+
+.lab-btn-primary {
+    background: var(--lab-accent-blue);
+    color: white;
+}
+
+.lab-btn-primary:hover {
+    background: #5555ff;
+    box-shadow: 0 2px 8px rgba(68, 68, 255, 0.4);
+}
+
+.lab-btn-success {
+    background: var(--lab-accent-green);
+    color: black;
+}
+
+.lab-btn-success:hover {
+    background: #55ff55;
+    box-shadow: 0 2px 8px rgba(68, 255, 68, 0.4);
+}
+
+.lab-btn-danger {
+    background: var(--lab-accent-red);
+    color: white;
+}
+
+.lab-btn-danger:hover {
+    background: #ff5555;
+    box-shadow: 0 2px 8px rgba(255, 68, 68, 0.4);
+}
+
+.lab-btn-warning {
+    background: var(--lab-accent-yellow);
+    color: black;
+}
+
+.lab-btn-warning:hover {
+    background: #ffbb55;
+    box-shadow: 0 2px 8px rgba(255, 170, 68, 0.4);
+}
+
+.lab-btn-small {
+    padding: var(--lab-space-xs) var(--lab-space-sm);
+    font-size: var(--lab-font-sm);
+}
+
+.lab-btn-icon {
+    padding: var(--lab-space-sm);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ========================================
+   Input System
+   ======================================== */
+.lab-input {
+    background: var(--lab-bg-input);
+    border: 1px solid var(--lab-border);
+    color: white;
+    padding: 6px 8px;
+    border-radius: 3px;
+    font-size: var(--lab-font-base);
+    transition: border-color var(--lab-duration-fast) ease;
+}
+
+.lab-input:focus {
+    outline: none;
+    border-color: var(--lab-accent-green);
+    box-shadow: 0 0 0 2px rgba(68, 255, 68, 0.1);
+}
+
+.lab-input:hover {
+    border-color: var(--lab-border-hover);
+}
+
+.lab-input.error {
+    border-color: var(--lab-accent-red);
+    background: rgba(255, 68, 68, 0.1);
+}
+
+.lab-input.changed {
+    border-color: var(--lab-accent-yellow);
+    box-shadow: 0 0 0 2px rgba(255, 170, 68, 0.1);
+}
+
+.lab-input-container {
+    margin-bottom: var(--lab-space-md);
+}
+
+.lab-input-label {
+    font-size: var(--lab-font-base);
+    color: var(--lab-text-primary);
+    font-weight: var(--lab-font-normal);
+}
+
+.lab-input-controls {
+    display: flex;
+    gap: var(--lab-space-xs);
+    justify-content: flex-end;
+}
+
+/* ========================================
+   Section System
+   ======================================== */
+.lab-section {
+    background: var(--lab-bg-section);
+    padding: var(--lab-space-md);
+    margin-bottom: var(--lab-space-md);
+    border-radius: 5px;
+    transition: all var(--lab-duration-fast) ease;
+    border: 1px solid transparent;
+}
+
+.lab-section:hover {
+    border-color: var(--lab-border-hover);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.lab-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    margin-bottom: var(--lab-space-md);
+    user-select: none;
+    padding: var(--lab-space-xs);
+    border-radius: 3px;
+    transition: background var(--lab-duration-fast) ease;
+}
+
+.lab-section-header:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.lab-section-title {
+    margin: 0;
+    font-size: var(--lab-font-md);
+    color: var(--lab-accent-cyan);
+    font-weight: var(--lab-font-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.lab-section-preview {
+    font-size: var(--lab-font-sm);
+    color: var(--lab-accent-green);
+    margin-top: var(--lab-space-xs);
+    font-family: monospace;
+    opacity: 0.8;
+}
+
+.lab-section-arrow {
+    color: var(--lab-accent-cyan);
+    font-size: var(--lab-font-base);
+    transition: transform var(--lab-duration-fast) var(--lab-ease-out);
+    margin-left: var(--lab-space-md);
+    flex-shrink: 0;
+}
+
+/* ========================================
+   Toast Notifications
+   ======================================== */
+.lab-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: var(--lab-space-md) var(--lab-space-lg);
+    border-radius: 4px;
+    z-index: 3000;
+    min-width: 200px;
+    max-width: 350px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    font-family: Arial, sans-serif;
+    font-size: var(--lab-font-base);
+    transition: all var(--lab-duration-normal) var(--lab-ease-in-out);
+}
+
+/* ========================================
+   Animations
+   ======================================== */
+@keyframes lab-highlight {
+    0%, 100% {
+        background: transparent;
+    }
+    50% {
+        background: rgba(68, 255, 68, 0.2);
+    }
+}
+
+@keyframes lab-slide-down {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes lab-fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes lab-save-pulse {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.05);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes lab-error-shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+        transform: translateX(-4px);
+    }
+    20%, 40%, 60%, 80% {
+        transform: translateX(4px);
+    }
+}
+
+.lab-changed {
+    animation: lab-highlight 1s ease-out;
+}
+
+.lab-saving {
+    animation: lab-save-pulse 0.5s ease-in-out;
+}
+
+.lab-error {
+    animation: lab-error-shake 0.5s ease-in-out;
+}
+
+/* ========================================
+   Utility Classes
+   ======================================== */
+.lab-mt-sm { margin-top: var(--lab-space-sm); }
+.lab-mt-md { margin-top: var(--lab-space-md); }
+.lab-mt-lg { margin-top: var(--lab-space-lg); }
+
+.lab-mb-sm { margin-bottom: var(--lab-space-sm); }
+.lab-mb-md { margin-bottom: var(--lab-space-md); }
+.lab-mb-lg { margin-bottom: var(--lab-space-lg); }
+
+.lab-flex { display: flex; }
+.lab-flex-col { flex-direction: column; }
+.lab-flex-center { align-items: center; justify-content: center; }
+.lab-gap-sm { gap: var(--lab-space-sm); }
+.lab-gap-md { gap: var(--lab-space-md); }
+
+.lab-text-primary { color: var(--lab-text-primary); }
+.lab-text-secondary { color: var(--lab-text-secondary); }
+.lab-text-tertiary { color: var(--lab-text-tertiary); }
+.lab-text-muted { color: var(--lab-text-muted); }
+
+.lab-font-xs { font-size: var(--lab-font-xs); }
+.lab-font-sm { font-size: var(--lab-font-sm); }
+.lab-font-base { font-size: var(--lab-font-base); }
+.lab-font-md { font-size: var(--lab-font-md); }
+.lab-font-lg { font-size: var(--lab-font-lg); }
+
+.lab-font-bold { font-weight: var(--lab-font-bold); }
+.lab-font-medium { font-weight: var(--lab-font-medium); }
+
+/* ========================================
+   Common Pattern Styles
+   ======================================== */
+.lab-quick-add-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 6px;
+}
+
+.lab-quick-add-btn {
+    background: #333;
+    color: #44aaff;
+    border: 1px solid #444;
+    padding: 8px 6px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: all 0.15s ease;
+}
+
+.lab-quick-add-btn:hover {
+    background: #444;
+    border-color: #44aaff;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(68, 170, 255, 0.3);
+}
+
+.lab-path-point-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    background: #1a1a1a;
+    border-radius: 3px;
+    border: 1px solid #333;
+}
+
+.lab-history-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #333;
+}
+
+.lab-quick-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.lab-info-text {
+    font-size: 11px;
+    color: #aaa;
+    font-family: monospace;
+}
+
+.lab-section-container {
+    background: #1a1a1a;
+    padding: 12px;
+    border-radius: 4px;
+    border: 1px solid #333;
+    margin-bottom: 10px;
+}
+
+/* ========================================
+   Scrollbar Styling
+   ======================================== */
+.panel-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.panel-content::-webkit-scrollbar-track {
+    background: var(--lab-bg);
+}
+
+.panel-content::-webkit-scrollbar-thumb {
+    background: var(--lab-border);
+    border-radius: 4px;
+    transition: background var(--lab-duration-fast) ease;
+}
+
+.panel-content::-webkit-scrollbar-thumb:hover {
+    background: var(--lab-border-hover);
+}
+
+/* ========================================
+   Loading Overlay
+   ======================================== */
+.lab-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(26, 26, 26, 0.95);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    backdrop-filter: blur(5px);
+}
+
+.lab-loading-overlay.visible {
+    display: flex;
+}
+
+.lab-loading-overlay .spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid var(--lab-border);
+    border-top-color: var(--lab-accent-green);
+    border-radius: 50%;
+    animation: lab-spin 0.8s linear infinite;
+}
+
+@keyframes lab-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ========================================
+   Sticky Actions Bar
+   ======================================== */
+#sticky-actions {
+    /* Positioned in JS - styles defined for reference */
+}
+
+/* Add padding to panel content when sticky actions are visible */
+.panel-content {
+    padding-bottom: 80px; /* Space for sticky actions */
+}

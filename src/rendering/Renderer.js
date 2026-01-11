@@ -1,6 +1,6 @@
 import { Debug } from '../utils/Debug.js';
-import { UILabels } from '../config/UILabels.js';
 import { GameConstants } from '../config/GameConstants.js';
+import { GRID_CONFIG } from '../config/GridConfig.js';
 import { Camera } from './Camera.js';
 
 /**
@@ -42,6 +42,7 @@ export class Renderer {
 
         this.drawWorldBackground();
         this.drawPath();
+        this.drawPathEndpoints();
         this.drawGrid();
 
         // Draw obstacles (world-based)
@@ -63,6 +64,11 @@ export class Renderer {
                 ...(gameState.hero ? [gameState.hero] : [])
             ];
             this.drawColliders(allEntities);
+        }
+
+        // Draw tower placement preview if a tower is selected
+        if (gameState.selectedTowerType && gameState.towerConfig && gameState.input) {
+            this.drawTowerPlacementPreview(gameState);
         }
 
         this.ctx.restore();
@@ -147,6 +153,45 @@ export class Renderer {
         this.ctx.fillStyle = '#3a3a3a';
         this.ctx.fillRect(worldX, worldY, worldWidth, pathHeight);
         Debug.warn('Path asset not found, using fallback color');
+    }
+
+    /**
+     * Draw home and flag icons at path endpoints
+     */
+    drawPathEndpoints() {
+        const iconSize = 48;
+        const pathY = GameConstants.PATH_WORLD_Y + GameConstants.PATH_WIDTH / 2;
+
+        // Home point (start of path - left side)
+        const homeX = 0;
+        const homeY = pathY;
+
+        // End point (goal - right side)
+        const endX = GRID_CONFIG.GRID_WIDTH * GRID_CONFIG.CELL_SIZE - GRID_CONFIG.CELL_SIZE;
+        const endY = pathY;
+
+        const homeIcon = this.assetLoader.get('HOME_ICON');
+        const flagIcon = this.assetLoader.get('FLAG_ICON');
+
+        if (homeIcon) {
+            this.ctx.drawImage(
+                homeIcon,
+                homeX - iconSize / 2,
+                homeY - iconSize / 2,
+                iconSize,
+                iconSize
+            );
+        }
+
+        if (flagIcon) {
+            this.ctx.drawImage(
+                flagIcon,
+                endX - iconSize / 2,
+                endY - iconSize / 2,
+                iconSize,
+                iconSize
+            );
+        }
     }
 
     drawAll(entities) {
@@ -439,8 +484,65 @@ export class Renderer {
                 this.ctx.fillStyle = '#555'; // Default obstacle color
             }
             this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-            
+
             // Optional: Add border or texture based on obstacle.type later
         });
+    }
+
+    /**
+     * Draw tower placement preview at mouse position
+     * @param {Object} gameState - Game state containing selected tower and mouse position
+     */
+    drawTowerPlacementPreview(gameState) {
+        const towerConfig = gameState.towerConfig[gameState.selectedTowerType];
+        if (!towerConfig) return;
+
+        const mousePos = gameState.input.getMousePosition();
+        const towerSize = 80; // Doubled tower size (was 40)
+        const x = mousePos.x - towerSize / 2;
+        const y = mousePos.y - towerSize / 2;
+
+        // Draw semi-transparent tower preview
+        this.ctx.save();
+        this.ctx.globalAlpha = 0.5;
+
+        // Try to draw tower sprite, fallback to colored rectangle
+        const spriteKey = towerConfig.sprite;
+        const sprite = spriteKey ? this.assetLoader.get(spriteKey) : null;
+
+        if (sprite && sprite.complete) {
+            // Draw the tower sprite
+            this.ctx.drawImage(sprite, x, y, towerSize, towerSize);
+        } else {
+            // Fallback to colored rectangle
+            this.ctx.fillStyle = towerConfig.color || '#3498db';
+            this.ctx.fillRect(x, y, towerSize, towerSize);
+
+            // Draw border
+            this.ctx.strokeStyle = '#ffffff';
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeRect(x, y, towerSize, towerSize);
+        }
+
+        this.ctx.restore();
+
+        // Draw range indicator with full opacity
+        if (towerConfig.range) {
+            this.ctx.save();
+            this.ctx.beginPath();
+            this.ctx.arc(
+                mousePos.x,
+                mousePos.y,
+                towerConfig.range,
+                0,
+                Math.PI * 2
+            );
+            this.ctx.fillStyle = 'rgba(68, 255, 68, 0.1)';
+            this.ctx.fill();
+            this.ctx.strokeStyle = 'rgba(68, 255, 68, 0.3)';
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+            this.ctx.restore();
+        }
     }
 } 

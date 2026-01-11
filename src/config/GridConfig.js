@@ -9,6 +9,9 @@ export const GridConfig = {
     DEBUG_TEXT_OFFSET: 5
 };
 
+// Export with alternative name for compatibility
+export const GRID_CONFIG = GridConfig;
+
 export const TERRAIN_TYPES = {
     EMPTY: 'empty',
     PATH: 'path',

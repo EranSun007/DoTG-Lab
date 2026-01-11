@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mockContext, mockCanvas, mockAssetLoader } from '../setup.js';
 import { createMockEntity, createMockTower, createMockEnemy } from '../test-utils/helpers.js';
 import { Renderer } from '../../src/rendering/Renderer.js';
-import { AssetLoader } from '../../js/utils/AssetLoader.js';
-import { GameConstants } from '../../js/config/GameConstants.js';
+import { AssetLoader } from '../../src/utils/AssetLoader.js';
+import { GameConstants } from '../../src/config/GameConstants.js';
 
 vi.mock('../../js/utils/AssetLoader.js');
 

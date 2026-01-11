@@ -155,8 +155,11 @@ export class Game {
 
         // Store enemy positions for later use
         this.enemyPositions = enemyPositions;
-        
-        // Bind tower selection handlers
+
+        // Create tower buttons dynamically from TowerConfig
+        this.uiManager.createTowerButtons(TowerConfig, (type) => this.selectTower(type), this.assetLoader);
+
+        // Bind tower selection handlers (for legacy compatibility)
         this.uiManager.bindTowerButtons({
             ranged: () => this.selectTower('ranged'),
             aoe: () => this.selectTower('aoe')
@@ -226,10 +229,11 @@ export class Game {
 
         // Create tower at specified position with all config properties
         const towerData = {
-            x: x - 20, // Center the tower on the mouse position
-            y: y - 20,
-            width: 40,
-            height: 40,
+            type: this.selectedTowerType, // Tower type (e.g., "Big" or "Small")
+            x: x - 40, // Center the tower on the mouse position (doubled size)
+            y: y - 40,
+            width: 80,  // Doubled from 40
+            height: 80, // Doubled from 40
             health: 100,
             range: towerConfig.range,
             damage: towerConfig.damage,
@@ -237,9 +241,10 @@ export class Game {
             projectileSpeed: towerConfig.projectileSpeed,
             projectileSize: towerConfig.projectileSize,
             color: towerConfig.color,
-            splashRadius: towerConfig.splashRadius,
-            splashDamage: towerConfig.splashDamage,
-            projectileType: towerConfig.projectileType
+            projectileType: towerConfig.projectileType,
+            // Optional AOE properties (only for towers like "Small" that have splash damage)
+            ...(towerConfig.splashRadius !== undefined && { splashRadius: towerConfig.splashRadius }),
+            ...(towerConfig.splashDamage !== undefined && { splashDamage: towerConfig.splashDamage })
         };
 
         // Create the tower
@@ -447,7 +452,6 @@ export class Game {
         this.enemyManager.update(adjustedDeltaTime, gameState);
         this.towerManager.updateAll(adjustedDeltaTime, gameState);
         this.projectileManager.updateAll(adjustedDeltaTime, gameState);
-        this.inputManager.update();
 
         // Update UI elements
         this.uiManager.updateGold(this.gold);
@@ -455,16 +459,14 @@ export class Game {
         this.uiManager.updateWaveNumber(this.currentWave);
         this.uiManager.toggleStartWaveButton(this.canStartWave);
 
-        // Handle tower placement with left mouse button
-        if (this.inputManager.isMousePressed && this.selectedTowerType) {
-            Debug.log('Attempting tower placement:', {
-                selectedType: this.selectedTowerType,
-                mousePos: this.inputManager.getMousePosition(),
-                gold: this.gold
-            });
+        // Handle tower placement when mouse button is released
+        if (this.selectedTowerType && this.inputManager.mouseJustReleased) {
             const mousePos = this.inputManager.getMousePosition();
             this.placeTowerAt(mousePos.x, mousePos.y);
         }
+
+        // Update input manager LAST - after all input-dependent logic has executed
+        this.inputManager.update();
 
         // Update hero if exists
         if (this.hero) {
@@ -595,6 +597,8 @@ export class Game {
             lives: this.lives,
             currentWave: this.currentWave,
             deltaTime: this.deltaTime, // Pass deltaTime for FPS calculation in overlay
+            selectedTowerType: this.selectedTowerType, // Pass selected tower type for placement preview
+            towerConfig: TowerConfig // Pass tower config for preview rendering
         };
 
         // Pass the rendering-specific state and deltaTime to the renderer
@@ -661,12 +665,12 @@ export class Game {
         this.isLoading = false;
         this.paused = true;
 
-        // Destroy all managers
-        this.enemyManager.destroy();
-        this.towerManager.destroy();
-        this.projectileManager.destroy();
-        this.inputManager.destroy();
-        this.uiManager.destroy();
+        // Destroy all managers (check for null first)
+        if (this.enemyManager) this.enemyManager.destroy();
+        if (this.towerManager) this.towerManager.destroy();
+        if (this.projectileManager) this.projectileManager.destroy();
+        if (this.inputManager) this.inputManager.destroy();
+        // Don't destroy uiManager as it's shared with the new game instance
 
         // Clear all entities
         this.entities.clear();
@@ -711,15 +715,81 @@ export class Game {
      */
     restart() {
         Debug.log('Restarting game...');
-        
-        // Destroy current game state
-        this.destroy();
-        
-        // Reinitialize game
-        this.constructor(this.canvas, this.uiManager);
-        this.initialize().catch(error => {
+
+        try {
+            // Stop the game loop
+            this.isRunning = false;
+            this.paused = true;
+
+            // Reset game state
+            this.gold = GameConstants.INITIAL_GOLD;
+            this.lives = GameConstants.INITIAL_LIVES;
+            this.currentWave = 1;
+            this.canStartWave = true;
+            this.selectedTowerType = null;
+            this.waveInProgress = false;
+
+            // Clear all entities
+            this.enemyManager.clear();
+            this.towerManager.clear();
+            this.projectileManager.clear();
+            this.entities.clear();
+
+            // Recreate hero
+            this.hero = new Hero({
+                x: GRID_CONFIG.CELL_SIZE * 2,
+                y: GRID_CONFIG.CELL_SIZE * Math.floor(GRID_CONFIG.GRID_HEIGHT / 2),
+                width: GRID_CONFIG.CELL_SIZE,
+                height: GRID_CONFIG.CELL_SIZE,
+                health: 200,
+                speed: 2,
+                range: 120,
+                damage: 15,
+                attackSpeed: 2,
+                gridManager: this.gridManager
+            });
+            this.entities.set(this.hero.id, this.hero);
+            this.renderer.setCameraTarget(this.hero);
+
+            // Update UI
+            this.uiManager.updateGold(this.gold);
+            this.uiManager.updateLives(this.lives);
+            this.uiManager.updateWaveNumber(this.currentWave);
+            this.uiManager.toggleStartWaveButton(this.canStartWave);
+
+            // Restart game loop
+            this.start();
+
+            Debug.log('Game restarted successfully');
+        } catch (error) {
             Debug.error('Failed to restart game:', error);
-            this.uiManager.showError(UILabels.ERRORS.GAME_RESTART_FAIL);
-        });
+            alert('Failed to restart game: ' + error.message);
+        }
+    }
+
+    /**
+     * Set the game canvas resolution
+     * @param {number} width - New canvas width
+     * @param {number} height - New canvas height
+     */
+    setResolution(width, height) {
+        Debug.log(`Setting resolution to ${width}x${height}`);
+
+        // Update canvas dimensions
+        this.canvas.width = width;
+        this.canvas.height = height;
+
+        // Update renderer with new canvas size
+        if (this.renderer) {
+            // Renderer camera will automatically adjust to new canvas size on next render
+            this.renderer.canvas = this.canvas;
+        }
+
+        // Re-render to reflect new dimensions immediately
+        if (!this.paused && this.isRunning) {
+            this.render();
+        }
+
+        Debug.log(`Resolution changed successfully to ${width}x${height}`);
     }
 } 

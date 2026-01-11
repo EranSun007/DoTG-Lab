@@ -177,16 +177,8 @@ export class UIManager {
         this.setupDebugMode();
     }
 
-    createTowerButtons(towerConfig, onSelectHandler) {
+    createTowerButtons(towerConfig, onSelectHandler, assetLoader = null) {
         const container = document.getElementById('tower-controls');
-        // Keep start wave button, remove others (or actually, we might want to clear and re-append start button?)
-        // The structure in index.html has start-wave-button inside tower-controls.
-        // Let's preserve the start wave button if it's there.
-
-        // Better approach: The start wave button might need to be kept separate if we want to clear the container.
-        // Or we can just remove all existing tower buttons (which we don't know ids of easily unless we track them).
-        // Let's clear the container but re-append the start wave button if we have a reference.
-
         if (!container) return;
 
         // Save start button if it exists in container
@@ -195,16 +187,54 @@ export class UIManager {
         container.innerHTML = '';
         if (startBtn) {
             container.appendChild(startBtn);
-            // Re-bind click because removing from DOM might not break reference but good to be safe
-            // Actually reusing the element reference preserves listeners usually.
         }
 
         this.towerButtonHandlers.select = onSelectHandler;
         this.towerButtons.clear();
 
         Object.keys(towerConfig).forEach(type => {
+            const config = towerConfig[type];
             const btn = document.createElement('button');
-            btn.textContent = towerConfig[type].name; // Use name from config
+            btn.className = 'tower-btn';
+            btn.dataset.type = type;
+            btn.style.display = 'flex';
+            btn.style.flexDirection = 'column';
+            btn.style.alignItems = 'center';
+            btn.style.padding = '8px 12px';
+            btn.style.minWidth = '80px';
+
+            // Add sprite image if assetLoader is available
+            const spriteKey = config.sprite;
+            if (spriteKey && assetLoader) {
+                const spriteImg = assetLoader.get(spriteKey);
+                if (spriteImg) {
+                    const img = document.createElement('img');
+                    img.src = spriteImg.src;
+                    img.style.width = '32px';
+                    img.style.height = '32px';
+                    img.style.display = 'block';
+                    img.style.marginBottom = '4px';
+                    btn.appendChild(img);
+                }
+            }
+
+            // Add tower name
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = config.name;
+            nameSpan.style.display = 'block';
+            nameSpan.style.fontSize = '11px';
+            nameSpan.style.textAlign = 'center';
+            btn.appendChild(nameSpan);
+
+            // Add cost display
+            const costSpan = document.createElement('span');
+            costSpan.textContent = `${config.cost}💰`;
+            costSpan.style.display = 'block';
+            costSpan.style.fontSize = '10px';
+            costSpan.style.opacity = '0.7';
+            costSpan.style.marginTop = '2px';
+            btn.appendChild(costSpan);
+
             btn.onclick = () => {
                 onSelectHandler(type);
             };

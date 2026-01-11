@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createMockGameState } from '../test-utils/helpers.js';
 import { EnemyManager } from '../../src/managers/EnemyManager.js';
-import { Enemy } from '../../js/entities/Enemy.js';
-import { WaveConfig } from '../../js/config/WaveConfig.js';
+import { Enemy } from '../../src/entities/enemies/Enemy.js';
+import { WaveConfig } from '../../src/config/WaveConfig.js';
 
 // Mock dependencies needed by EnemyManager and Enemy
 const mockGridManager = {

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Game } from '../../src/core/Game.js';
-import { Hero } from '../../js/entities/Hero.js';
-import { Tower } from '../../js/entities/Tower.js';
-import { InputManager } from '../../js/managers/InputManager.js';
-import { TowerConfig } from '../../js/config/TowerConfig.js'; // Needed for tower creation
-import { GRID_CONFIG } from '../../js/config/GridConfig.js'; // Import for grid calculations
+import { Hero } from '../../src/entities/players/Hero.js';
+import { Tower } from '../../src/entities/towers/Tower.js';
+import { InputManager } from '../../src/managers/InputManager.js';
+import { TowerConfig } from '../../src/config/TowerConfig.js'; // Needed for tower creation
+import { GRID_CONFIG } from '../../src/config/GridConfig.js'; // Import for grid calculations
 
 // Mock dependencies
 const mockCanvas = {

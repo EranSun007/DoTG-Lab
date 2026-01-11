@@ -1,7 +1,7 @@
 // tests/game/Camera.test.js
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Camera } from '../../src/core/Camera.js';
-import { CameraConfig } from '../../js/config/CameraConfig.js'; // Assuming config is testable
+import { CameraConfig } from '../../src/config/CameraConfig.js'; // Assuming config is testable
 
 // Mock the CameraConfig if needed, or use the real one
 // vi.mock('../../js/config/CameraConfig.js', () => ({

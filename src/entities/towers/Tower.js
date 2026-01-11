@@ -22,7 +22,7 @@ export class Tower extends Entity {
     constructor(data) {
         super(data);
         const config = TowerConfig[data.type] || TowerConfig.ranged;
-        
+
         this.type = data.type || 'ranged';
         this.range = data.range || config.range;
         this.damage = data.damage || config.damage;
@@ -37,10 +37,11 @@ export class Tower extends Entity {
         this.projectileType = data.projectileType || config.projectileType;
         this.level = 1;
         this.cost = data.cost || config.cost;
+        this.sprite = data.sprite || config.sprite || 'TOWER_BASIC'; // Get sprite from config
     }
 
     getAssetType() {
-        return 'TOWER_BASIC';
+        return this.sprite || 'TOWER_BASIC';
     }
 
     getDrawData() {

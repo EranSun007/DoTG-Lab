@@ -238,26 +238,26 @@ export class Hero extends Entity {
                 const ratio = moveDistance / distance;
                 const nextX = this.x + currentDx * ratio;
                 const nextY = this.y + currentDy * ratio;
-                
+
                 // Check if next position is valid (not inside an obstacle)
                 const nextGridX = Math.floor(nextX / GRID_CONFIG.CELL_SIZE);
                 const nextGridY = Math.floor(nextY / GRID_CONFIG.CELL_SIZE);
                 const currentGridX = Math.floor(this.x / GRID_CONFIG.CELL_SIZE);
                 const currentGridY = Math.floor(this.y / GRID_CONFIG.CELL_SIZE);
-                
+
                 // Always move if staying in same cell
                 const movingWithinSameCell = (nextGridX === currentGridX && nextGridY === currentGridY);
-                
+
                 // If moving to new cell, check if it's our target (which should be walkable)
-                const movingToTargetCell = (nextGridX === Math.floor(this.targetX / GRID_CONFIG.CELL_SIZE) && 
+                const movingToTargetCell = (nextGridX === Math.floor(this.targetX / GRID_CONFIG.CELL_SIZE) &&
                                            nextGridY === Math.floor(this.targetY / GRID_CONFIG.CELL_SIZE));
-                
+
                 // Move if we're staying in the same cell OR moving to our valid target
-                if (movingWithinSameCell || movingToTargetCell || 
+                if (movingWithinSameCell || movingToTargetCell ||
                     !this.gridManager || this.gridManager.isCellWalkable(nextGridX, nextGridY)) {
                     this.x = nextX;
                     this.y = nextY;
-                    
+
                     // Update direction based on horizontal movement
                     if (Math.abs(currentDx) > 0.1) { // Add tolerance
                         this.directionX = Math.sign(currentDx);
@@ -265,7 +265,7 @@ export class Hero extends Entity {
                 } else {
                     // Hit an obstacle during movement, try to slide along it
                     // This allows diagonal movement to slide along walls
-                    
+
                     // Try horizontal movement only
                     const nextXOnly = this.x + currentDx * ratio;
                     const nextXGridX = Math.floor(nextXOnly / GRID_CONFIG.CELL_SIZE);
@@ -273,7 +273,7 @@ export class Hero extends Entity {
                         this.x = nextXOnly;
                         // Update direction
                         this.directionX = Math.sign(currentDx);
-                    } 
+                    }
                     // Try vertical movement only
                     else {
                         const nextYOnly = this.y + currentDy * ratio;
@@ -310,12 +310,12 @@ export class Hero extends Entity {
         if (currentAnimData) {
             this.frameTimer += deltaTime;
             const frameDuration = 1 / currentAnimData.frameRate;
-            
+
             // Check if it's time to advance to the next frame
             if (this.frameTimer >= frameDuration) {
                 // Reset timer, keeping remainder for smoother animation
                 this.frameTimer = this.frameTimer % frameDuration;
-                
+
                 // Move to next frame, ensuring we don't exceed frame count
                 this.currentFrame = (this.currentFrame + 1) % currentAnimData.frames.length;
             }

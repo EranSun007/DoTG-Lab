@@ -11,16 +11,16 @@ export class InputManager {
         this.previousKeys = new Set(); // Track previous key states
         this.mouseScreenPosition = { x: 0, y: 0 };
         this.isMousePressed = false;
-        this.lastMousePressed = false; // Track previous state for click detection
+        this.mouseJustReleased = false; // Track if mouse was just released this frame
         this.debug = false; // Disable excessive key checking logs
-        
+
         // Bind event handlers
         this.handleKeyDown = this.handleKeyDown.bind(this);
         this.handleKeyUp = this.handleKeyUp.bind(this);
         this.handleMouseMove = this.handleMouseMove.bind(this);
         this.handleMouseDown = this.handleMouseDown.bind(this);
         this.handleMouseUp = this.handleMouseUp.bind(this);
-        
+
         // Add event listeners
         window.addEventListener('keydown', this.handleKeyDown);
         window.addEventListener('keyup', this.handleKeyUp);
@@ -28,7 +28,14 @@ export class InputManager {
         canvas.addEventListener('mousedown', this.handleMouseDown);
         canvas.addEventListener('mouseup', this.handleMouseUp);
 
+        // DEBUG: Test if events are firing at all
+        canvas.addEventListener('click', (e) => {
+            console.log('[InputManager] CLICK EVENT FIRED!', e.clientX, e.clientY);
+        });
+
         Debug.log('InputManager initialized');
+        console.log('[InputManager] Canvas element:', canvas);
+        console.log('[InputManager] Canvas dimensions:', canvas.width, 'x', canvas.height);
     }
 
     handleKeyDown(event) {
@@ -53,6 +60,8 @@ export class InputManager {
 
     handleMouseUp(event) {
         this.isMousePressed = false;
+        this.mouseJustReleased = true;
+        console.log('[InputManager] mouseJustReleased set to TRUE');
     }
 
     isKeyDown(key) {
@@ -92,8 +101,12 @@ export class InputManager {
     update() {
         // Update previous keys state
         this.previousKeys = new Set(this.keys);
-        
-        // Update any input state that needs to be updated every frame
+
+        // Reset mouseJustReleased flag after it's been read
+        if (this.mouseJustReleased) {
+            console.log('[InputManager] mouseJustReleased reset to FALSE');
+        }
+        this.mouseJustReleased = false;
     }
 
     /**

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Hero } from '../../src/entities/Hero.js';
-import { ANIMATION_CONFIG } from '../../js/config/AnimationConfig.js'; // Import the real config
-import { GRID_CONFIG } from '../../js/config/GridConfig.js'; // Import grid config
+import { Hero } from '../../src/entities/players/Hero.js';
+import { ANIMATION_CONFIG } from '../../src/config/AnimationConfig.js'; // Import the real config
+import { GRID_CONFIG } from '../../src/config/GridConfig.js'; // Import grid config
 
 // Mock parts of the config for predictable testing if needed, or use the real one
 const MOCK_ANIMATION_CONFIG = {

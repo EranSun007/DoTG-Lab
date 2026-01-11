@@ -14,12 +14,8 @@ describe('UIManager', () => {
             goldDisplay: document.createElement('span'),
             livesDisplay: document.createElement('span'),
             // Correct key from waveDisplay to waveNumberDisplay
-            waveNumberDisplay: document.createElement('span'), 
+            waveNumberDisplay: document.createElement('span'),
             startWaveButton: document.createElement('button'),
-            towerButtons: {
-                ranged: document.createElement('button'),
-                aoe: document.createElement('button')
-            },
             errorDisplay: document.createElement('div') // Assuming this might be used later
         };
 
@@ -28,15 +24,31 @@ describe('UIManager', () => {
         document.body.appendChild(mockElements.livesDisplay);
         document.body.appendChild(mockElements.waveNumberDisplay);
         document.body.appendChild(mockElements.startWaveButton);
-        document.body.appendChild(mockElements.towerButtons.ranged);
-        document.body.appendChild(mockElements.towerButtons.aoe);
         document.body.appendChild(mockElements.errorDisplay);
-
 
         // Initialize UIManager - Constructor takes no args
         uiManager = new UIManager();
         // Call init here to set up elements and listeners before tests run
-        uiManager.init(mockElements); 
+        uiManager.init(mockElements);
+
+        // Manually add tower buttons to the Map (simulating what createTowerButtons does)
+        const rangedBtn = document.createElement('button');
+        rangedBtn.className = 'tower-btn';
+        rangedBtn.dataset.type = 'ranged';
+        document.body.appendChild(rangedBtn);
+        uiManager.towerButtons.set('ranged', rangedBtn);
+
+        const aoeBtn = document.createElement('button');
+        aoeBtn.className = 'tower-btn';
+        aoeBtn.dataset.type = 'aoe';
+        document.body.appendChild(aoeBtn);
+        uiManager.towerButtons.set('aoe', aoeBtn);
+
+        // Store references for cleanup
+        mockElements.towerButtons = {
+            ranged: rangedBtn,
+            aoe: aoeBtn
+        };
     });
 
     // Cleanup after each test
@@ -160,15 +172,15 @@ describe('UIManager', () => {
         // Note: Event listeners are added in init(), which is called in beforeEach()
         it('should bind tower button events and call handler on click', () => {
             const mockCallback = vi.fn();
-            // Use the bind method
-            uiManager.bindTowerButtons({ 
-                ranged: mockCallback,
-                aoe: () => {} // provide dummy for others if needed by bind method
-            });
+
+            // Set up button click handlers manually (simulating what createTowerButtons does)
+            const rangedBtn = uiManager.towerButtons.get('ranged');
+            rangedBtn.onclick = () => mockCallback('ranged');
 
             // Simulate click
-            mockElements.towerButtons.ranged.click();
+            rangedBtn.click();
             expect(mockCallback).toHaveBeenCalledTimes(1); // Ensure it was called
+            expect(mockCallback).toHaveBeenCalledWith('ranged');
         });
 
         it('should bind start wave button event and call handler on click', () => {

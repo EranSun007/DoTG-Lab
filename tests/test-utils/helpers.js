@@ -1,5 +1,5 @@
 import { mockCanvas } from '../setup.js';
-import { Tower } from '../../js/entities/Tower.js';
+import { Tower } from '../../src/entities/towers/Tower.js';
 
 /**
  * Creates a mock game state for testing

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createMockTower, createMockEnemy, createMockGameState } from '../test-utils/helpers.js';
-import { Tower } from '../../src/entities/Tower.js';
-import { TowerConfig } from '../../js/config/TowerConfig.js';
+import { Tower } from '../../src/entities/towers/Tower.js';
+import { TowerConfig } from '../../src/config/TowerConfig.js';
 
 describe('Tower', () => {
   let tower;
