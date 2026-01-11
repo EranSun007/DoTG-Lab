@@ -2,7 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Git Workflow
+
+- **Source of Truth**: The `main` branch is the primary branch.
+- **Syncing**: Always merge/rebase into `main` before pushing.
+- **Pushing**: Push directly to `main` (unless protection rules require PRs).
+
 ## Build/Test Commands
+
 - Run all tests: `npm test` or `vitest`
 - Run specific test: `npm test -- path/to/file.test.js`
 - Run tests with pattern: `npm test -- --testNamePattern="Pattern"`
@@ -12,6 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - HTML coverage report: `npm run coverage:html`
 
 ## Code Style Guidelines
+
 - JS modules with ES6 import/export syntax
 - 4-space indentation, single quotes, semicolons required
 - PascalCase for class names, camelCase for methods/variables
