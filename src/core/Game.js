@@ -16,7 +16,8 @@ import { DebugMenu } from '../debug/DebugMenu.js';
 import { Debug } from '../utils/Debug.js';
 import { UILabels } from '../config/UILabels.js';
 import { GRID_CONFIG } from '../config/GridConfig.js';
-import { Pathfinder } from '../utils/Pathfinder.js';
+import { LevelConfig } from '../config/LevelConfig.js';
+import { PathEditorV2 } from '../ui/PathEditorV2.js';
 
 /**
  * @class Game
@@ -33,23 +34,15 @@ export class Game {
         this.towerManager = new TowerManager();
         this.projectileManager = new ProjectileManager();
         this.gridManager = new GridManager();
-        this.pathfinder = new Pathfinder(this.gridManager);
         this.uiManager = uiManager;
         this.debugMenu = new DebugMenu(this);
-        
-        // Define obstacles first
-        this.obstacles = [
-            // Walls
-            { x: 100, y: 100, width: 50, height: 200, color: 'gray', type: 'wall' },
-            { x: 600, y: 300, width: 200, height: 50, color: 'darkgray', type: 'wall' },
-            // Water
-            { x: 300, y: 400, width: 150, height: 100, color: 'blue', type: 'water' },
-            // Trees
-            { x: 500, y: 100, width: 60, height: 60, color: 'green', type: 'tree' },
-            { x: 520, y: 170, width: 40, height: 40, color: 'darkgreen', type: 'tree' },
-        ];
+        this.pathEditor = new PathEditorV2();
 
-        // Initialize GridManager with static obstacles (now that obstacles are defined)
+        // Load level configuration
+        this.currentLevel = LevelConfig.level1;
+        this.obstacles = this.currentLevel.obstacles;
+
+        // Initialize GridManager with static obstacles
         this.gridManager.updateGridWithObstacles(this.obstacles);
 
         // Test obstacles <-- Remove this duplicate definition if it exists below
@@ -167,6 +160,70 @@ export class Game {
 
         // Bind start wave handler
         this.uiManager.bindStartWave(this.startWave.bind(this));
+
+        // Bind path editor UI handlers
+        this.initPathEditorUI();
+    }
+
+    /**
+     * Initialize path editor UI button handlers
+     */
+    initPathEditorUI() {
+        const deleteBtn = document.getElementById('path-delete-selected');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => {
+                this.pathEditor.deleteSelected();
+                Debug.log('Deleted selected waypoint');
+            });
+        }
+
+        const clearBtn = document.getElementById('path-clear-all');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                if (confirm('Clear all waypoints?')) {
+                    this.pathEditor.clearAll();
+                    Debug.log('Cleared all waypoints');
+                }
+            });
+        }
+
+        const exportBtn = document.getElementById('path-export-json');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                const pathData = this.pathEditor.exportPath();
+                if (pathData) {
+                    const jsonString = JSON.stringify(pathData, null, 2);
+                    console.log('Exported Path JSON:\n', jsonString);
+
+                    // Copy to clipboard
+                    navigator.clipboard.writeText(jsonString).then(() => {
+                        alert('Path JSON copied to clipboard!');
+                    }).catch(err => {
+                        console.error('Failed to copy to clipboard:', err);
+                        alert('Path JSON logged to console');
+                    });
+                }
+            });
+        }
+
+        const importBtn = document.getElementById('path-import-json');
+        if (importBtn) {
+            importBtn.addEventListener('click', () => {
+                const jsonString = prompt('Paste path JSON:');
+                if (jsonString) {
+                    try {
+                        const pathData = JSON.parse(jsonString);
+                        this.pathEditor.enable(pathData);
+                        Debug.log('Path imported successfully');
+                    } catch (err) {
+                        Debug.error('Failed to parse path JSON:', err);
+                        alert('Invalid JSON format');
+                    }
+                }
+            });
+        }
+
+        Debug.log('Path editor UI initialized');
     }
 
     /**
@@ -298,23 +355,28 @@ export class Game {
         waveConfig.enemies.forEach(enemyGroup => {
             const enemyConfig = EnemyConfig[enemyGroup.type];
             if (enemyConfig) {
+                // Get path from level config
+                const pathName = enemyGroup.pathName || 'main';
+                const pathData = this.currentLevel.paths[pathName];
+
+                if (!pathData) {
+                    Debug.error(`Path "${pathName}" not found in level config`);
+                    return;
+                }
+
                 for (let i = 0; i < enemyGroup.count; i++) {
                     // Calculate staggered spawn positions
                     const spawnOffset = i * 100; // Space enemies apart
                     this.enemyManager.addEnemy({
-                        x: -spawnOffset, // Start off-screen
-                        y: GameConstants.PATH_WORLD_Y + GameConstants.PATH_WIDTH / 2, // Start on path Y
+                        x: pathData.waypoints[0].x - spawnOffset, // Start at first waypoint, offset for spacing
+                        y: pathData.waypoints[0].y,
                         width: enemyConfig.width,
                         height: enemyConfig.height,
                         health: enemyConfig.health,
                         speed: enemyConfig.speed,
                         type: enemyGroup.type,
                         value: enemyConfig.value,
-                        gridManager: this.gridManager, // Pass gridManager
-                        pathfinder: this.pathfinder,   // Pass pathfinder
-                        // Goal position (e.g., right edge, centered on path Y)
-                        goalX: GRID_CONFIG.GRID_WIDTH * GRID_CONFIG.CELL_SIZE - GRID_CONFIG.CELL_SIZE, // Target last column
-                        goalY: GameConstants.PATH_WORLD_Y + GameConstants.PATH_WIDTH / 2
+                        waypoints: pathData.waypoints // Pass waypoints directly to enemy
                     });
                 }
             }
@@ -411,6 +473,9 @@ export class Game {
     update(deltaTime) {
         if (this.paused) return;
 
+        // Update input manager FIRST - snapshots state before game logic reads it
+        this.inputManager.update();
+
         // Apply speed multiplier to delta time
         const adjustedDeltaTime = deltaTime * this.speedMultiplier;
 
@@ -420,6 +485,25 @@ export class Game {
                 const state = this.getState();
                 Debug.log('Current Game State:', state);
             }
+            // Log mouse state with 'M' key
+            if (this.inputManager.isKeyJustPressed('m')) {
+                this.inputManager.logState();
+            }
+        }
+
+        // Handle path editor toggle with 'P' key
+        if (this.inputManager.isKeyJustPressed('p')) {
+            const toolbar = document.getElementById('path-editor-v2');
+            if (this.pathEditor.enabled) {
+                this.pathEditor.disable();
+                if (toolbar) toolbar.style.display = 'none';
+            } else {
+                // Load current level's main path for editing
+                const pathData = this.currentLevel.paths.main;
+                this.pathEditor.enable(pathData);
+                if (toolbar) toolbar.style.display = 'block';
+            }
+            Debug.log(`Path editor ${this.pathEditor.enabled ? 'opened' : 'closed'}`);
         }
 
         // Ensure obstacles are always properly marked in the grid
@@ -459,14 +543,29 @@ export class Game {
         this.uiManager.updateWaveNumber(this.currentWave);
         this.uiManager.toggleStartWaveButton(this.canStartWave);
 
-        // Handle tower placement when mouse button is released
-        if (this.selectedTowerType && this.inputManager.mouseJustReleased) {
+        // Handle path editor interactions (higher priority than tower placement)
+        if (this.pathEditor.enabled) {
+            const mousePos = this.inputManager.getMousePosition();
+
+            // Handle hover
+            this.pathEditor.handleHover(mousePos.x, mousePos.y);
+
+            // Handle click
+            if (this.inputManager.mouseJustReleased) {
+                this.pathEditor.handleClick(mousePos.x, mousePos.y);
+                this.pathEditor.handleRelease();
+            }
+
+            // Handle drag
+            if (this.inputManager.mousePressed && this.pathEditor.selectedWaypoint !== null) {
+                this.pathEditor.handleDrag(mousePos.x, mousePos.y);
+            }
+        }
+        // Handle tower placement when mouse button is released (only if path editor is not active)
+        else if (this.selectedTowerType && this.inputManager.mouseJustReleased) {
             const mousePos = this.inputManager.getMousePosition();
             this.placeTowerAt(mousePos.x, mousePos.y);
         }
-
-        // Update input manager LAST - after all input-dependent logic has executed
-        this.inputManager.update();
 
         // Update hero if exists
         if (this.hero) {
@@ -598,7 +697,8 @@ export class Game {
             currentWave: this.currentWave,
             deltaTime: this.deltaTime, // Pass deltaTime for FPS calculation in overlay
             selectedTowerType: this.selectedTowerType, // Pass selected tower type for placement preview
-            towerConfig: TowerConfig // Pass tower config for preview rendering
+            towerConfig: TowerConfig, // Pass tower config for preview rendering
+            pathEditor: this.pathEditor // Pass path editor for visual overlay
         };
 
         // Pass the rendering-specific state and deltaTime to the renderer

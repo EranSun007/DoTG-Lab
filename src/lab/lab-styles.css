@@ -7,27 +7,27 @@
    CSS Variables
    ======================================== */
 :root {
-    /* Colors */
-    --lab-bg: #1a1a1a;
-    --lab-bg-section: #2a2a2a;
-    --lab-bg-section-collapsed: #222;
-    --lab-bg-input: #333;
-    --lab-border: #444;
-    --lab-border-hover: #555;
+    /* Colors - Glassmorphism Backgrounds */
+    --lab-bg: rgba(20, 15, 10, 0.6);
+    --lab-bg-section: rgba(30, 22, 12, 0.4);
+    --lab-bg-section-collapsed: rgba(25, 18, 10, 0.5);
+    --lab-bg-input: rgba(20, 15, 10, 0.6);
+    --lab-border: rgba(255, 180, 100, 0.2);
+    --lab-border-hover: rgba(255, 180, 100, 0.4);
 
-    /* Accent Colors */
-    --lab-accent-green: #44ff44;
-    --lab-accent-blue: #4444ff;
-    --lab-accent-yellow: #ffaa44;
-    --lab-accent-red: #ff4444;
-    --lab-accent-purple: #aa44ff;
-    --lab-accent-cyan: #44aaff;
+    /* Accent Colors - Molten Amber Theme */
+    --lab-accent-green: #FFB347;  /* Changed to warm orange (was neon green) */
+    --lab-accent-blue: #F4A460;   /* Changed to sandy brown (was blue) */
+    --lab-accent-yellow: #FFD700; /* Gold */
+    --lab-accent-red: #FF6347;    /* Tomato red */
+    --lab-accent-purple: #D4AF37; /* Goldenrod */
+    --lab-accent-cyan: #FFB366;   /* Amber primary */
 
-    /* Text Colors */
-    --lab-text-primary: #ffffff;
-    --lab-text-secondary: #aaa;
-    --lab-text-tertiary: #888;
-    --lab-text-muted: #666;
+    /* Text Colors - Warm Amber Tones */
+    --lab-text-primary: #FFF5E6;  /* Warm white */
+    --lab-text-secondary: #FFE4B3; /* Light amber */
+    --lab-text-tertiary: #CCA366; /* Muted gold */
+    --lab-text-muted: #8B7355;    /* Disabled brown */
 
     /* Spacing */
     --lab-space-xs: 4px;
@@ -140,18 +140,23 @@
    ======================================== */
 .lab-input {
     background: var(--lab-bg-input);
-    border: 1px solid var(--lab-border);
-    color: white;
-    padding: 6px 8px;
-    border-radius: 3px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: 2px solid var(--lab-border);
+    color: var(--lab-text-primary);
+    padding: 10px 14px;
+    border-radius: 8px;
     font-size: var(--lab-font-base);
-    transition: border-color var(--lab-duration-fast) ease;
+    font-family: var(--font-body, 'Outfit', sans-serif);
+    transition: all var(--lab-duration-normal) ease;
 }
 
 .lab-input:focus {
     outline: none;
-    border-color: var(--lab-accent-green);
-    box-shadow: 0 0 0 2px rgba(68, 255, 68, 0.1);
+    background: rgba(30, 20, 10, 0.7);
+    border-color: var(--lab-accent-cyan);
+    box-shadow: 0 0 20px rgba(255, 179, 102, 0.3),
+                inset 0 0 10px rgba(255, 179, 102, 0.1);
 }
 
 .lab-input:hover {
@@ -189,11 +194,13 @@
    ======================================== */
 .lab-section {
     background: var(--lab-bg-section);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     padding: var(--lab-space-md);
     margin-bottom: var(--lab-space-md);
-    border-radius: 5px;
+    border-radius: 10px;
     transition: all var(--lab-duration-fast) ease;
-    border: 1px solid transparent;
+    border: 1px solid var(--lab-border);
 }
 
 .lab-section:hover {

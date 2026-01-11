@@ -184,7 +184,10 @@ export class UIManager {
         // Save start button if it exists in container
         const startBtn = document.getElementById('start-wave-button');
 
-        container.innerHTML = '';
+        // Clear container safely using DOM methods instead of innerHTML
+        while (container.firstChild) {
+            container.removeChild(container.firstChild);
+        }
         if (startBtn) {
             container.appendChild(startBtn);
         }
@@ -197,11 +200,6 @@ export class UIManager {
             const btn = document.createElement('button');
             btn.className = 'tower-btn';
             btn.dataset.type = type;
-            btn.style.display = 'flex';
-            btn.style.flexDirection = 'column';
-            btn.style.alignItems = 'center';
-            btn.style.padding = '8px 12px';
-            btn.style.minWidth = '80px';
 
             // Add sprite image if assetLoader is available
             const spriteKey = config.sprite;
@@ -210,29 +208,20 @@ export class UIManager {
                 if (spriteImg) {
                     const img = document.createElement('img');
                     img.src = spriteImg.src;
-                    img.style.width = '32px';
-                    img.style.height = '32px';
-                    img.style.display = 'block';
-                    img.style.marginBottom = '4px';
                     btn.appendChild(img);
                 }
             }
 
             // Add tower name
             const nameSpan = document.createElement('span');
+            nameSpan.className = 'tower-name';
             nameSpan.textContent = config.name;
-            nameSpan.style.display = 'block';
-            nameSpan.style.fontSize = '11px';
-            nameSpan.style.textAlign = 'center';
             btn.appendChild(nameSpan);
 
-            // Add cost display
+            // Add cost display with structured markup
             const costSpan = document.createElement('span');
+            costSpan.className = 'tower-cost';
             costSpan.textContent = `${config.cost}💰`;
-            costSpan.style.display = 'block';
-            costSpan.style.fontSize = '10px';
-            costSpan.style.opacity = '0.7';
-            costSpan.style.marginTop = '2px';
             btn.appendChild(costSpan);
 
             btn.onclick = () => {
@@ -285,33 +274,39 @@ export class UIManager {
     // Update UI state methods with visual feedback
     updateGold(amount) {
         if (this.goldDisplay) {
-            const oldAmount = parseInt(this.goldDisplay.textContent.split(': ')[1]) || 0;
-            this.goldDisplay.textContent = `${UILabels.STATUS.GOLD}${amount}`;
+            // Find the stat-value span or use the element itself
+            const valueElement = this.goldDisplay.querySelector('.stat-value') || this.goldDisplay;
+            const oldAmount = parseInt(valueElement.textContent) || 0;
+            valueElement.textContent = amount;
 
             // Visual feedback for gold changes
             if (amount > oldAmount) {
-                this.flashButton(this.goldDisplay, 'gold-increase');
+                this.flashButton(this.goldDisplay, 'stat-increase');
             } else if (amount < oldAmount) {
-                this.flashButton(this.goldDisplay, 'gold-decrease');
+                this.flashButton(this.goldDisplay, 'stat-decrease');
             }
         }
     }
 
     updateLives(count) {
         if (this.livesDisplay) {
-            const oldCount = parseInt(this.livesDisplay.textContent.split(': ')[1]) || 0;
-            this.livesDisplay.textContent = `${UILabels.STATUS.LIVES}${count}`;
+            // Find the stat-value span or use the element itself
+            const valueElement = this.livesDisplay.querySelector('.stat-value') || this.livesDisplay;
+            const oldCount = parseInt(valueElement.textContent) || 0;
+            valueElement.textContent = count;
 
             // Visual feedback for life changes
             if (count < oldCount) {
-                this.flashDamage(this.livesDisplay);
+                this.flashButton(this.livesDisplay, 'stat-decrease');
             }
         }
     }
 
     updateWaveNumber(wave) {
         if (this.waveNumberDisplay) {
-            this.waveNumberDisplay.textContent = `${UILabels.STATUS.WAVE}${wave}`;
+            // Find the stat-value span or use the element itself
+            const valueElement = this.waveNumberDisplay.querySelector('.stat-value') || this.waveNumberDisplay;
+            valueElement.textContent = wave;
         }
     }
 
@@ -362,9 +357,12 @@ export class UIManager {
     // Get current UI state with validation
     getState() {
         const state = {
-            gold: this.goldDisplay ? parseInt(this.goldDisplay.textContent.split(': ')[1]) : 0,
-            lives: this.livesDisplay ? parseInt(this.livesDisplay.textContent.split(': ')[1]) : 0,
-            waveNumber: this.waveNumberDisplay ? parseInt(this.waveNumberDisplay.textContent.split(': ')[1]) : 0,
+            gold: this.goldDisplay ?
+                parseInt((this.goldDisplay.querySelector('.stat-value') || this.goldDisplay).textContent) : 0,
+            lives: this.livesDisplay ?
+                parseInt((this.livesDisplay.querySelector('.stat-value') || this.livesDisplay).textContent) : 0,
+            waveNumber: this.waveNumberDisplay ?
+                parseInt((this.waveNumberDisplay.querySelector('.stat-value') || this.waveNumberDisplay).textContent) : 0,
             startWaveEnabled: this.startWaveButton ? !this.startWaveButton.disabled : false,
             selectedTower: Object.entries(this.towerButtons)
                 .find(([_, button]) => button?.classList.contains('selected'))?.[0] || null

@@ -10,8 +10,15 @@ export class InputManager {
         this.keys = new Set();
         this.previousKeys = new Set(); // Track previous key states
         this.mouseScreenPosition = { x: 0, y: 0 };
-        this.isMousePressed = false;
-        this.mouseJustReleased = false; // Track if mouse was just released this frame
+
+        // === MOUSE STATE (current frame) ===
+        this.mousePressed = false;              // Is mouse currently down?
+        this.previousMousePressed = false;       // Was mouse down last frame?
+
+        // === DERIVED STATES (computed from current + previous) ===
+        this.mouseJustPressed = false;           // Just pressed this frame (false→true)
+        this.mouseJustReleased = false;          // Just released this frame (true→false)
+
         this.debug = false; // Disable excessive key checking logs
 
         // Bind event handlers
@@ -55,13 +62,11 @@ export class InputManager {
     }
 
     handleMouseDown(event) {
-        this.isMousePressed = true;
+        this.mousePressed = true;
     }
 
     handleMouseUp(event) {
-        this.isMousePressed = false;
-        this.mouseJustReleased = true;
-        console.log('[InputManager] mouseJustReleased set to TRUE');
+        this.mousePressed = false;
     }
 
     isKeyDown(key) {
@@ -94,19 +99,71 @@ export class InputManager {
         return this.mouseScreenPosition;
     }
 
-    isMousePressed() {
-        return this.isMousePressed;
-    }
-
     update() {
-        // Update previous keys state
+        // 1. Snapshot previous state FIRST
+        this.previousMousePressed = this.mousePressed;
         this.previousKeys = new Set(this.keys);
 
-        // Reset mouseJustReleased flag after it's been read
-        if (this.mouseJustReleased) {
-            console.log('[InputManager] mouseJustReleased reset to FALSE');
-        }
-        this.mouseJustReleased = false;
+        // 2. Compute derived states from current + previous
+        this.mouseJustPressed = this.mousePressed && !this.previousMousePressed;
+        this.mouseJustReleased = !this.mousePressed && this.previousMousePressed;
+
+        // 3. Don't reset flags - they'll be overwritten next frame
+    }
+
+    /**
+     * Query current mouse state
+     * @returns {boolean} True if mouse is currently pressed
+     */
+    isMouseDown() {
+        return this.mousePressed;
+    }
+
+    /**
+     * Query current mouse state
+     * @returns {boolean} True if mouse is currently not pressed
+     */
+    isMouseUp() {
+        return !this.mousePressed;
+    }
+
+    /**
+     * Query mouse state transition
+     * @returns {boolean} True if mouse was just pressed this frame
+     */
+    wasMouseJustPressed() {
+        return this.mouseJustPressed;
+    }
+
+    /**
+     * Query mouse state transition
+     * @returns {boolean} True if mouse was just released this frame
+     */
+    wasMouseJustReleased() {
+        return this.mouseJustReleased;
+    }
+
+    /**
+     * Get mouse position in world coordinates
+     * @returns {{x: number, y: number}} World coordinates
+     */
+    getMouseWorldPosition() {
+        return this.getMousePosition();
+    }
+
+    /**
+     * Log current mouse state for debugging
+     */
+    logState() {
+        const worldPos = this.getMousePosition();
+        Debug.log('Mouse State:', {
+            pressed: this.mousePressed,
+            previousPressed: this.previousMousePressed,
+            justPressed: this.mouseJustPressed,
+            justReleased: this.mouseJustReleased,
+            worldPos: `(${worldPos.x.toFixed(0)}, ${worldPos.y.toFixed(0)})`,
+            screenPos: `(${this.mouseScreenPosition.x.toFixed(0)}, ${this.mouseScreenPosition.y.toFixed(0)})`
+        });
     }
 
     /**
@@ -124,7 +181,10 @@ export class InputManager {
         this.keys.clear();
         this.keys = null;
         this.mouseScreenPosition = { x: 0, y: 0 };
-        this.isMousePressed = false;
+        this.mousePressed = false;
+        this.previousMousePressed = false;
+        this.mouseJustPressed = false;
+        this.mouseJustReleased = false;
         this.previousKeys.clear();
 
         Debug.log('InputManager destroyed');
