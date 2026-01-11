@@ -1,6 +1,26 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
+// Mock AssetLoader globally
+vi.mock('../js/utils/AssetLoader.js', () => ({
+    AssetLoader: vi.fn().mockImplementation(() => ({
+        load: vi.fn(() => Promise.resolve()),
+        getAsset: vi.fn((key) => {
+            // Basic mock: return a simple object for image assets
+            if (key && typeof key === 'string' && (key.includes('IMAGE') || key.includes('SPRITE') || key.includes('TILE'))) {
+                return { width: 32, height: 32, isMockAsset: true };
+            }
+            return null;
+        }),
+        get: vi.fn((key) => { // Alias for getAsset if used
+             if (key && typeof key === 'string' && (key.includes('IMAGE') || key.includes('SPRITE') || key.includes('TILE'))) {
+                return { width: 32, height: 32, isMockAsset: true };
+            }
+            return null;
+        }),
+    })),
+}));
+
 // Mock canvas context
 const mockContext = {
   save: vi.fn(),
@@ -34,28 +54,24 @@ const mockCanvas = {
   getContext: vi.fn().mockReturnValue(mockContext),
   width: 800,
   height: 600,
+  // Mock addEventListener/removeEventListener for canvas if needed by InputManager
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+  getBoundingClientRect: vi.fn(() => ({ left: 0, top: 0, width: 800, height: 600 }))
 };
 
-// Mock window
-global.window = {
-  ...global.window,
-  performance: {
-    now: vi.fn().mockReturnValue(0),
-  },
-  requestAnimationFrame: vi.fn().mockReturnValue(0),
-  cancelAnimationFrame: vi.fn(),
-};
+// Mock performance.now() as it might be used directly
+if (typeof window !== 'undefined') {
+    window.performance = window.performance || {};
+    window.performance.now = vi.fn(() => Date.now()); // Use Date.now() or a fixed increment
+} else {
+    // Define performance globally if window doesn't exist initially (less ideal)
+    global.performance = {
+        now: vi.fn(() => Date.now())
+    };
+}
 
-// Mock document
-global.document = {
-  ...global.document,
-  createElement: vi.fn().mockImplementation((tagName) => {
-    if (tagName === 'canvas') return mockCanvas;
-    return {};
-  }),
-};
-
-// Mock Image
+// Keep Mock Image if needed for asset loading simulation
 global.Image = vi.fn().mockImplementation(() => ({
   src: '',
   onload: null,
@@ -64,10 +80,10 @@ global.Image = vi.fn().mockImplementation(() => ({
   height: 32,
 }));
 
-// Mock asset loader
+// Mock asset loader (Can be removed if AssetLoader is mocked per-test or via vi.mock)
+/*
 const mockAssetLoader = {
   get: vi.fn().mockImplementation((key) => {
-    // Return a mock image for specific asset keys
     if (key.startsWith('TOWER_') || key.startsWith('ENEMY_') || key === 'BACKGROUND_TILE' || key === 'PATH') {
       return {
         width: 32,
@@ -78,6 +94,7 @@ const mockAssetLoader = {
     return null;
   })
 };
+*/
 
-// Export mock objects for use in tests
-export { mockContext, mockCanvas, mockAssetLoader }; 
+// Export mock objects for use in tests (Optional, maybe prefer imports)
+export { mockContext, mockCanvas }; 
