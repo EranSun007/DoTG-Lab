@@ -1,2 +1,15 @@
 # Auto Claude data directory
 .auto-claude/
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Claude local settings
+.claude/settings.local.json
+
+# Node modules platform-specific binaries
+node_modules/@esbuild/
+node_modules/@rollup/
+node_modules/fsevents/

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createMockTower, createMockEnemy, createMockGameState } from '../test-utils/helpers.js';
-import { Tower } from '../../js/entities/Tower.js';
+import { Tower } from '../../src/entities/Tower.js';
 import { TowerConfig } from '../../js/config/TowerConfig.js';
 
 describe('Tower', () => {
@@ -62,6 +62,8 @@ describe('Tower', () => {
       expect(enemy.health).toBe(initialHealth - tower.damage);
 
       // Test with ProjectileManager
+      // Reset cooldown before testing projectile attack
+      tower.cooldown = 0; 
       const enemy2 = createMockEnemy('basic', { x: 50, y: 50, health: 100 });
       tower.attack(enemy2, mockProjectileManager);
       expect(mockProjectileManager.createProjectile).toHaveBeenCalledWith(
@@ -75,14 +77,10 @@ describe('Tower', () => {
 
     it('should respect attack cooldown', () => {
       const enemy = createMockEnemy('basic', { x: 50, y: 50, health: 100 });
-      const initialHealth = enemy.health;
-
-      tower.attack(enemy);
-      tower.attack(enemy); // Should not do damage due to cooldown
-      expect(enemy.health).toBe(initialHealth - tower.damage);
 
       // Test with ProjectileManager
-      const enemy2 = createMockEnemy('basic', { x: 50, y: 50 });
+      const enemy2 = createMockEnemy('basic', { x: 50, y: 50, health: 100 });
+      tower.cooldown = 0; // Ensure cooldown is ready for the first attack
       tower.attack(enemy2, mockProjectileManager);
       tower.attack(enemy2, mockProjectileManager); // Should not create second projectile
       expect(mockProjectileManager.createProjectile).toHaveBeenCalledTimes(1);

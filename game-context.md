@@ -257,6 +257,45 @@ TD_REBUILD/
 
 ---
 
+## ✨ Tip 11: Sprite Animation System — Added
+- Implemented sprite-based animations for entities, starting with the Hero.
+- Created `AnimationConfig.js` to define animation properties (spritesheet key, frame dimensions, frame rate, frame sequence).
+- Assets for animation sheets (e.g., `hero_idle_sheet.png`, `hero_walk_sheet.png`) are loaded via `AssetLoader` using keys defined in `AssetConfig.js`.
+- Entities manage their own animation state (`animationState`, `currentFrame`, `frameTimer`, `directionX` for Hero).
+- Entity `update()` method transitions states (e.g., `IDLE` <-> `WALK`) and advances `currentFrame` based on `deltaTime` and `frameRate`.
+- Entity `getDrawData()` now returns animation-specific data (`animationSheet`, `sourceX`, `sourceY`, `sourceWidth`, `sourceHeight`, `flipHorizontal`).
+- `Renderer.drawEntity()` updated to handle drawing specific frames from spritesheets using the 9-argument `drawImage` signature.
+- Renderer handles horizontal flipping (`flipHorizontal`) using `ctx.scale` and `ctx.translate`.
+- Added unit tests (`Hero.test.js`) to verify animation state logic, frame advancement, and `getDrawData` output.
+
+### Architecture Improvements:
+- Decoupled animation data (config) from animation logic (entity) and rendering (renderer).
+- Config-driven approach allows easy tuning of animation speeds and definitions.
+- System supports different animations per entity state.
+- Renderer handles complex drawing logic, keeping entities focused on state.
+- Added test coverage for animation logic.
+
+---
+
+## ✨ Tip 12: Dynamic Obstacle System — Added
+- Implemented a dynamic grid-based obstacle system that allows the Hero to block enemy paths.
+- Enhanced `GridManager` with terrain types (`EMPTY`, `BLOCKED`, `TOWER`, `HERO`) to represent different cell states.
+- Hero updates the grid in real-time via `updateGridPosition()` to mark its current position and clear previous positions.
+- Enemies use `isPathBlocked()` to detect when their path is obstructed by the moving Hero.
+- Pathfinding system (`Pathfinder` class) dynamically recalculates enemy paths when obstacles (including the Hero) block their current route.
+- Implemented path retry mechanism with fallback paths for scenarios where no valid path exists.
+- Added cleanup routines to prevent "stuck" cells from persisting after the Hero moves.
+- Grid cells track entity references to distinguish Hero-occupied cells from other obstacles.
+
+### Architecture Improvements:
+- Created a truly dynamic game environment where player movement affects enemy behavior.
+- Decoupled grid representation from visual rendering for clean separation of concerns.
+- Implemented robust pathfinding with error handling and fallbacks for edge cases.
+- Added debugging support for visualizing grid state and path calculations.
+- Positioned the system for future enhancements like dynamic destructible terrain.
+
+---
+
 ## Design Philosophy
 - OOP-first with modular manager/controller classes
 - Generic engineering-first architecture, content-neutral until final phase

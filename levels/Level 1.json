@@ -1,0 +1,71 @@
+{
+    "WaveConfig": [
+        {
+            "waveNumber": 1,
+            "enemies": [
+                {
+                    "type": "basic",
+                    "count": 3,
+                    "delay": 4
+                }
+            ],
+            "reward": 50,
+            "description": "First wave - Basic enemies"
+        },
+        {
+            "waveNumber": 2,
+            "enemies": [
+                {
+                    "type": "basic",
+                    "count": 6,
+                    "delay": 1.5
+                },
+                {
+                    "type": "fast",
+                    "count": 2,
+                    "delay": 3
+                }
+            ],
+            "reward": 75,
+            "description": "Second wave - Mix of basic and fast enemies"
+        },
+        {
+            "waveNumber": 3,
+            "enemies": [
+                {
+                    "type": "basic",
+                    "count": 8,
+                    "delay": 1.2
+                },
+                {
+                    "type": "fast",
+                    "count": 4,
+                    "delay": 2
+                },
+                {
+                    "type": "tank",
+                    "count": 1,
+                    "delay": 4
+                }
+            ],
+            "reward": 100,
+            "description": "Third wave - All enemy types"
+        }
+    ],
+    "GridConfig": {
+        "CELL_SIZE": 32,
+        "GRID_WIDTH": 40,
+        "GRID_HEIGHT": 23,
+        "LINE_COLOR": "rgba(255, 255, 255, 0.1)",
+        "HOVER_COLOR": "rgba(255, 255, 255, 0.2)",
+        "DEBUG_TEXT_COLOR": "white",
+        "DEBUG_TEXT_SIZE": 12,
+        "DEBUG_TEXT_OFFSET": 5
+    },
+    "GameConstants": {
+        "INITIAL_GOLD": 100,
+        "INITIAL_LIVES": 3,
+        "PATH_WIDTH": 64
+    },
+    "timestamp": 1768066719668
+}

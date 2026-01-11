@@ -12,6 +12,8 @@ export function createMockGameState() {
     waveNumber: 1,
     isWaveActive: false,
     selectedTowerType: null,
+    waveInProgress: false,
+    canStartWave: true,
     isPaused: false,
     speedMultiplier: 1,
     debug: false,
@@ -76,7 +78,7 @@ export function createMockTower(type, props = {}) {
  * @returns {Object} Mock enemy
  */
 export function createMockEnemy(type, props = {}) {
-  return createMockEntity('enemy', {
+  const enemy = createMockEntity('enemy', {
     type,
     health: 100,
     maxHealth: 100,
@@ -93,6 +95,21 @@ export function createMockEnemy(type, props = {}) {
     }),
     ...props,
   });
+
+  // Add a basic update method for testing movement
+  enemy.update = function(deltaTime, gameState) {
+    // Simple movement for testing - just increment x/y slightly
+    // A real implementation would use pathfinding
+    this.x += (this.speed || 1) * deltaTime * 0.1;
+    this.y += (this.speed || 1) * deltaTime * 0.05;
+  };
+
+  // Add isAlive method for testing removal
+  enemy.isAlive = function() {
+    return this.health > 0;
+  };
+
+  return enemy;
 }
 
 /**

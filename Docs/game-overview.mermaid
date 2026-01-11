@@ -1,0 +1,35 @@
+flowchart TD
+    subgraph CoreConcept["Core Concept"]
+        NoGodView["No God View Perspective\n(Limited Information Gameplay)"]
+        PartyBased["Party-Based Tower Defense\n(Companions as Towers)"]
+        D_D["D&D Integration\n(Classes, Abilities, Progression)"]
+        ArchEnemy["Arch-Enemy System\n(Adaptive AI Villains)"]
+    end
+
+    subgraph GameplaySystems["Gameplay Systems"]
+        HeroComp["Hero & Companion System"]
+        TowerCustom["Tower Customization"]
+        FogOfWar["Fog of War & Communication"]
+        EnemyDesign["Enemy Design & Behavior"]
+        ResourceEcon["Dual Resource Economy"]
+    end
+
+    subgraph ProgressionSystems["Progression & Retention"]
+        CharProgression["Character Progression"]
+        CompanionDev["Companion Development"]
+        Campaign["Campaign Structure"]
+        Social["Social Features"]
+    end
+    
+    CoreConcept -->|informs| GameplaySystems
+    GameplaySystems -->|drives| ProgressionSystems
+    
+    NoGodView -->|implemented through| FogOfWar
+    PartyBased -->|implemented through| HeroComp
+    D_D -->|implemented through| CharProgression
+    ArchEnemy -->|implemented through| EnemyDesign
+    
+    HeroComp -->|leverages| CharProgression
+    TowerCustom -->|enables| CompanionDev
+    EnemyDesign -->|challenges| Campaign
+    ResourceEcon -->|fuels| ProgressionSystems
