@@ -25,6 +25,7 @@ export class Tower extends Entity {
         this.projectileType = data.projectileType || config.projectileType;
         this.level = 1;
         this.cost = data.cost || config.cost;
+        this.sprite = data.sprite || config.sprite || 'TOWER_BASIC'; // Use configured sprite or buffer default
 
         // Operational States
         this.states = data.states || config.states || [
@@ -59,7 +60,7 @@ export class Tower extends Entity {
     }
 
     getAssetType() {
-        return 'TOWER_BASIC';
+        return this.sprite;
     }
 
     getDrawData() {
@@ -127,7 +128,7 @@ export class Tower extends Entity {
 
             target.health -= this.damage;
             this.lastAttackTime = Date.now();
-            this.cooldown = 1000 / this.attackSpeed; // Convert to milliseconds
+            this.cooldown = 1 / this.attackSpeed; // Convert to seconds
             return;
         }
 
@@ -141,11 +142,11 @@ export class Tower extends Entity {
         );
 
         this.lastAttackTime = Date.now();
-        this.cooldown = 1000 / this.attackSpeed; // Convert to milliseconds
+        this.cooldown = 1 / this.attackSpeed; // Convert to seconds
     }
 
     update(deltaTime, gameState) {
-        // Update cooldown (deltaTime is in milliseconds)
+        // Update cooldown (deltaTime is in seconds)
         if (this.cooldown > 0) {
             this.cooldown = Math.max(0, this.cooldown - deltaTime);
         }

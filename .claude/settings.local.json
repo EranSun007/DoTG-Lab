@@ -1,9 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -m http.server:*)"
+      "Bash(python -m http.server:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "docker",
+    "chrome-devtools"
+  ]
 }

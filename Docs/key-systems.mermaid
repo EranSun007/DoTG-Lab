@@ -1,0 +1,47 @@
+graph TD
+    subgraph NoGodView["No God View Perspective"]
+        FogOfWar["Fog of War System"]
+        LimitedInfo["Limited Information Gameplay"]
+        DirectCommand["Direct Command Requirement"]
+        CommMethods["Communication Methods"]
+    end
+    
+    subgraph PartyBased["Party-Based Tower Defense"]
+        HeroCentric["Hero-Centric Gameplay"]
+        CompanionCollection["Companion Collection"]
+        LivingTowers["Living Towers (Companions)"]
+        PartyManagement["Dynamic Party Management"]
+    end
+    
+    subgraph TacticalTowerCustom["Tactical Tower Customization"]
+        AoEControl["Area of Effect Control"]
+        TargetSelection["Target Selection Preferences"]
+        LoSMechanics["Line of Sight Mechanics"]
+    end
+    
+    subgraph ArchEnemySys["Arch-Enemy System"]
+        VillainAI["Villain AI Director"]
+        DynamicWaves["Dynamic Wave Composition"]
+        AdaptiveResponse["Adaptive Response"]
+        PersonalityTypes["Villain Personality Types"]
+    end
+    
+    subgraph InfoSystems["Knowledge & Information Systems"]
+        Bestiary["Bestiary System"]
+        SensoryNotification["Sensory Notification System"]
+        RemoteObservation["Remote Observation Mechanics"]
+        FogOfWarUI["Fog of War UI Elements"]
+    end
+    
+    NoGodView --- InfoSystems
+    PartyBased --- TacticalTowerCustom
+    ArchEnemySys --- DynamicWaves
+    
+    FogOfWar -->|implements| LimitedInfo
+    DirectCommand -->|requires| CommMethods
+    HeroCentric -->|leads| PartyManagement
+    CompanionCollection -->|provides| LivingTowers
+    AoEControl & TargetSelection & LoSMechanics -->|customize| LivingTowers
+    VillainAI -->|controls| DynamicWaves & AdaptiveResponse
+    PersonalityTypes -->|defines| VillainAI
+    Bestiary & SensoryNotification & RemoteObservation -->|supports| NoGodView

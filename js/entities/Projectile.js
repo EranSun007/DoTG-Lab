@@ -11,10 +11,11 @@ export class Projectile extends Entity {
         this.splashDamage = data.splashDamage || 0;
         this.hasHitTarget = false;
         this.rotation = 0;
+        this.assetType = data.assetType || 'PROJECTILE_ARROW';
     }
 
     getAssetType() {
-        return 'PROJECTILE_ARROW';
+        return this.assetType;
     }
 
     getDrawData() {
@@ -35,7 +36,7 @@ export class Projectile extends Entity {
         const dx = this.target.x - this.x;
         const dy = this.target.y - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        
+
         // Update rotation to face target
         this.rotation = Math.atan2(dy, dx);
 

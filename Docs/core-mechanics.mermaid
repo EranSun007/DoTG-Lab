@@ -1,0 +1,40 @@
+flowchart TB
+    subgraph GameLoop["Gameplay Loop"]
+        Planning["Planning Phase"]
+        Deployment["Building/Deployment Phase"]
+        Battle["Battle Observation Phase"]
+        Upgrade["Upgrading/Adaptation Phase"]
+    end
+
+    subgraph HeroActions["Hero Actions"]
+        DirectCombat["Direct Combat"]
+        TowerCommand["Tower/Companion Commands"]
+        Scouting["Scouting & Information Gathering"]
+        ResourceCollection["Resource Collection"]
+    end
+
+    subgraph TowerSystem["Tower (Companion) System"]
+        OffensiveTowers["Offensive Companions"]
+        SupportTowers["Support Companions"]
+        TacticalTowers["Tactical Companions"]
+        CustomizationOptions["Targeting & Area Control Options"]
+    end
+
+    subgraph EnemySystem["Enemy System"]
+        StandardEnemies["Standard Enemies"]
+        EliteEnemies["Elite Enemies"]
+        BossEnemies["Boss Enemies"]
+        VillainAI["Arch-Enemy/Villain AI"]
+    end
+    
+    Planning --> Deployment --> Battle --> Upgrade
+    Upgrade -.-> Planning
+    
+    HeroActions <--> GameLoop
+    TowerSystem <--> GameLoop
+    EnemySystem --> GameLoop
+    
+    VillainAI -->|adapts to| TowerSystem
+    HeroActions -->|manages| TowerSystem
+    DirectCombat & TowerCommand & Scouting -->|counters| EnemySystem
+    ResourceCollection -->|fuels| Upgrade

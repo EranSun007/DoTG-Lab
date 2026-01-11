@@ -46,84 +46,30 @@ export class EnemyManager {
     }
 
     /**
-     * Update all enemies and wave state
+     * Update all enemies
      * @param {number} deltaTime - Time since last update in seconds
      * @param {Object} gameState - Current game state
      */
     update(deltaTime, gameState) {
-        // Update wave state if active
-        if (this.currentWave) {
-            const waveConfig = this.currentWave.config;
-            
-            // Check if we should spawn a new enemy
-            if (this.currentWave.enemiesSpawned < waveConfig.totalEnemies) {
-                const timeSinceLastSpawn = performance.now() / 1000 - (this.currentWave.lastSpawnTime || 0);
-                if (timeSinceLastSpawn >= waveConfig.spawnInterval) {
-                    this.spawnEnemy();
-                    this.currentWave.lastSpawnTime = performance.now() / 1000;
-                    this.currentWave.enemiesSpawned++;
-                }
-            }
-            
-            // Check if wave is complete
-            if (this.currentWave.enemiesSpawned >= waveConfig.totalEnemies && 
-                this.enemies.length === 0) {
-                this.currentWave = null;
-                gameState.waveInProgress = false;
-                gameState.canStartWave = true;
-            }
-        }
-
         // Update all enemies
         this.enemies.forEach(enemy => {
             enemy.update(deltaTime, gameState);
-            
-            // Remove dead enemies
-            if (!enemy.isAlive()) {
-                this.removeEnemy(enemy.id);
-                // Add gold reward
-                const enemyConfig = WaveConfig[gameState.currentWave].enemyTypes[enemy.type] || 
-                                  WaveConfig[gameState.currentWave].enemyTypes.basic;
-                gameState.gold += enemyConfig.value;
-            }
         });
     }
 
     /**
-     * Spawn a new enemy based on current wave configuration
-     */
-    spawnEnemy() {
-        if (!this.currentWave) return;
-
-        const waveConfig = this.currentWave.config;
-        const enemyType = this.getRandomEnemyType(waveConfig.enemyTypes);
-        const enemyConfig = waveConfig.enemyTypes[enemyType];
-        
-        const enemy = new Enemy({
-            type: enemyType,
-            health: enemyConfig.health,
-            speed: enemyConfig.speed,
-            value: enemyConfig.value,
-            path: waveConfig.path
-        });
-
-        this.enemies.push(enemy);
-    }
-
-    /**
-     * Get a random enemy type based on spawn weights
-     * @param {Object} enemyTypes - Enemy type configurations
-     * @returns {string} Selected enemy type
+     * Draw all enemies
+     * @param {CanvasRenderingContext2D} ctx - Canvas context
      */
     getRandomEnemyType(enemyTypes) {
         const totalWeight = Object.values(enemyTypes).reduce((sum, config) => sum + config.spawnWeight, 0);
         let random = Math.random() * totalWeight;
-        
+
         for (const [type, config] of Object.entries(enemyTypes)) {
             random -= config.spawnWeight;
             if (random <= 0) return type;
         }
-        
+
         return 'basic'; // Fallback
     }
 

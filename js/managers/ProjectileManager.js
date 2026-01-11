@@ -25,7 +25,8 @@ export class ProjectileManager {
             splashDamage: source.splashDamage || 0,
             target,
             source,
-            type
+            type,
+            assetType: config.assetType
         });
 
         this.projectiles.set(projectile.id, projectile);
@@ -45,6 +46,10 @@ export class ProjectileManager {
         for (const projectile of this.projectiles.values()) {
             projectile.draw(ctx);
         }
+    }
+
+    getAll() {
+        return Array.from(this.projectiles.values());
     }
 
     getProjectilesBySource(sourceId) {

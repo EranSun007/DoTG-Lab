@@ -17,6 +17,8 @@ import { DebugMenu } from './debug/DebugMenu.js';
 import { Debug } from './utils/Debug.js';
 import { UILabels } from './config/UILabels.js';
 import { GridConfig } from './config/GridConfig.js';
+import { LevelConfig } from './config/LevelConfig.js';
+
 
 export class Game {
     constructor(canvas, uiManager) {
@@ -65,10 +67,13 @@ export class Game {
         this.paused = false;
         this.gold = GameConstants.INITIAL_GOLD;
         this.lives = GameConstants.INITIAL_LIVES;
+        if (!this.currentLevel) this.currentLevel = 1;
         this.currentWave = 1;
         this.canStartWave = true;
         this.selectedTowerType = null;
         this.waveInProgress = false;
+        this.isEditingPath = false;
+        this.pathEditType = 'append'; // 'home', 'end', 'append'
     }
 
     async initialize() {
@@ -180,11 +185,19 @@ export class Game {
         }
 
         // Check if placement is valid (not on path)
-        const pathY = this.canvas.height / 2;
-        const pathHeight = 64; // Standard path width
-        if (Math.abs(y - pathY) < pathHeight / 2) {
-            Debug.log('Cannot place tower: Invalid location (on path)');
-            return;
+        const levelConfig = LevelConfig[this.currentLevel];
+        const path = levelConfig.path;
+        const pathWidth = 64; // Standard path width
+
+        // Check distance to each path segment
+        for (let i = 0; i < path.length - 1; i++) {
+            const p1 = path[i];
+            const p2 = path[i + 1];
+            const dist = this.getPointToSegmentDistance(x, y, p1.x, p1.y, p2.x, p2.y);
+            if (dist < pathWidth / 2 + 10) { // Added some margin
+                Debug.log('Cannot place tower: Invalid location (on path)');
+                return;
+            }
         }
 
         // Create tower at specified position with all config properties
@@ -226,6 +239,17 @@ export class Game {
     }
 
     /**
+     * Calculate distance from point (px, py) to line segment (x1, y1) - (x2, y2)
+     */
+    getPointToSegmentDistance(px, py, x1, y1, x2, y2) {
+        const l2 = (x1 - x2) ** 2 + (y1 - y2) ** 2;
+        if (l2 === 0) return Math.sqrt((px - x1) ** 2 + (py - y1) ** 2);
+        let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+        t = Math.max(0, Math.min(1, t));
+        return Math.sqrt((px - (x1 + t * (x2 - x1))) ** 2 + (py - (y1 + t * (y2 - y1))) ** 2);
+    }
+
+    /**
      * Get the current wave configuration
      * @returns {Object|null} The wave config or null if no more waves
      */
@@ -254,6 +278,9 @@ export class Game {
         this.canStartWave = false;
 
         // Create enemies based on wave configuration
+        const levelConfig = LevelConfig[this.currentLevel];
+        const path = levelConfig.path;
+
         waveConfig.enemies.forEach(enemyGroup => {
             const enemyConfig = EnemyConfig[enemyGroup.type];
             if (enemyConfig) {
@@ -261,14 +288,15 @@ export class Game {
                     // Calculate staggered spawn positions
                     const spawnOffset = i * 100; // Space enemies apart
                     this.enemyManager.addEnemy({
-                        x: -spawnOffset, // Start off-screen
-                        y: this.ctx.canvas.height / 2, // Center vertically
+                        x: path[0].x - spawnOffset, // Start off-screen from first path point
+                        y: path[0].y,
                         width: enemyConfig.width,
                         height: enemyConfig.height,
                         health: enemyConfig.health,
                         speed: enemyConfig.speed,
                         type: enemyGroup.type,
-                        value: enemyConfig.value
+                        value: enemyConfig.value,
+                        path: path
                     });
                 }
             }
@@ -404,7 +432,7 @@ export class Game {
         this.enemyManager.update(adjustedDeltaTime, gameState);
         this.towerManager.updateAll(adjustedDeltaTime, gameState);
         this.projectileManager.updateAll(adjustedDeltaTime, gameState);
-        this.inputManager.update();
+
 
         // Update UI elements
         this.uiManager.updateGold(this.gold);
@@ -415,8 +443,33 @@ export class Game {
         // Handle tower selection and placement
         mousePos = this.inputManager.getMousePosition();
 
-        if (this.inputManager.isMousePressed) {
-            if (this.selectedTowerType) {
+        if (this.inputManager.isMouseClicked()) {
+            if (this.isEditingPath) {
+                // Path editing mode
+                const levelConfig = LevelConfig[this.currentLevel];
+                if (levelConfig) {
+                    if (!levelConfig.path) levelConfig.path = [];
+
+                    const point = { x: Math.round(mousePos.x), y: Math.round(mousePos.y) };
+
+                    if (this.pathEditType === 'home') {
+                        if (levelConfig.path.length > 0) {
+                            levelConfig.path[0] = point;
+                        } else {
+                            levelConfig.path.push(point);
+                        }
+                    } else if (this.pathEditType === 'end') {
+                        if (levelConfig.path.length > 1) {
+                            levelConfig.path[levelConfig.path.length - 1] = point;
+                        } else {
+                            levelConfig.path.push(point);
+                        }
+                    } else if (this.pathEditType === 'append') {
+                        levelConfig.path.push(point);
+                    }
+                    console.log(`Path ${this.pathEditType} point set:`, point);
+                }
+            } else if (this.selectedTowerType) {
                 // Placement mode
                 console.log('Attempting tower placement:', {
                     selectedType: this.selectedTowerType,
@@ -450,39 +503,9 @@ export class Game {
             const dy = mousePos.y - (this.selectedTower.y + this.selectedTower.height / 2);
             this.selectedTower.setTargetAngle(Math.atan2(dy, dx));
         }
-    }
 
-    getTowerCallbacks(tower) {
-        return {
-            onClose: () => {
-                this.selectedTower = null;
-            },
-            canUpgrade: (cost) => {
-                return this.gold >= cost;
-            },
-            onUpgrade: (t) => {
-                const cost = Math.floor(t.cost * 1.5 * t.level);
-                if (this.gold >= cost) {
-                    this.gold -= cost;
-                    t.upgrade();
-                    this.uiManager.updateGold(this.gold);
-                    // Refresh UI with updated stats and costs
-                    this.uiManager.showTowerInfo(t, this.getTowerCallbacks(t));
-                }
-            },
-            onSell: (t) => {
-                const refund = Math.floor(t.cost * 0.7 * t.level);
-                this.gold += refund;
-                this.towerManager.removeEntity(t.id);
-                this.uiManager.updateGold(this.gold);
-                this.uiManager.hideTowerInfo();
-                this.selectedTower = null;
-            }
-        };
-
-        // Update hero if exists
+        // Update hero movement if exists
         if (this.hero) {
-            this.hero.update(adjustedDeltaTime, gameState);
             this.handleHeroMovement(adjustedDeltaTime);
         }
 
@@ -521,12 +544,57 @@ export class Game {
             this.canStartWave = true;
             this.uiManager.toggleStartWaveButton(true);
 
-            const waveConfig = this.getCurrentWaveConfig();
+            // Reward for completing the wave (currentWave was already incremented in startWave)
+            const completedWaveIndex = this.currentWave - 2;
+            const waveConfig = WaveConfig[completedWaveIndex];
             if (waveConfig) {
                 this.gold += waveConfig.reward;
                 this.uiManager.updateGold(this.gold);
             }
+
+            // Check for level progression
+            if (this.currentWave > WaveConfig.length) {
+                this.currentLevel++;
+                this.currentWave = 1; // Reset to first wave of new level
+                Debug.log(`Advancing to level ${this.currentLevel}`);
+
+                if (!LevelConfig[this.currentLevel]) {
+                    this.currentLevel = 1; // Cycle back to level 1
+                    Debug.log('All levels completed! Cycling back...');
+                }
+            }
         }
+        // Update input manager at the end of frame to maintain state for next frame
+        this.inputManager.update();
+    }
+
+    getTowerCallbacks(tower) {
+        return {
+            onClose: () => {
+                this.selectedTower = null;
+            },
+            canUpgrade: (cost) => {
+                return this.gold >= cost;
+            },
+            onUpgrade: (t) => {
+                const cost = Math.floor(t.cost * 1.5 * t.level);
+                if (this.gold >= cost) {
+                    this.gold -= cost;
+                    t.upgrade();
+                    this.uiManager.updateGold(this.gold);
+                    // Refresh UI with updated stats and costs
+                    this.uiManager.showTowerInfo(t, this.getTowerCallbacks(t));
+                }
+            },
+            onSell: (t) => {
+                const refund = Math.floor(t.cost * 0.7 * t.level);
+                this.gold += refund;
+                this.towerManager.removeEntity(t.id);
+                this.uiManager.updateGold(this.gold);
+                this.uiManager.hideTowerInfo();
+                this.selectedTower = null;
+            }
+        };
     }
 
     /**
@@ -570,7 +638,7 @@ export class Game {
         this.renderer.clear();
 
         // Draw background
-        this.renderer.drawBackground();
+        this.renderer.drawBackground(LevelConfig[this.currentLevel]);
 
         // Draw grid
         this.gridManager.draw(this.ctx);
@@ -580,7 +648,7 @@ export class Game {
         this.renderer.drawAll(this.towerManager.getAll());
 
         // Draw projectiles
-        this.projectileManager.drawAll(this.ctx);
+        this.renderer.drawAll(this.projectileManager.getAll());
 
         // Draw hero if exists
         if (this.hero) {
@@ -597,6 +665,14 @@ export class Game {
                     this.hero
                 ].filter(Boolean);
                 this.renderer.drawColliders(allEntities);
+            }
+        }
+
+        // Draw path markers during editing
+        if (this.isEditingPath) {
+            const levelConfig = LevelConfig[this.currentLevel];
+            if (levelConfig && levelConfig.path) {
+                this.renderer.drawPathMarkers(levelConfig.path, true);
             }
         }
 

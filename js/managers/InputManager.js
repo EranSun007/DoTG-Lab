@@ -12,14 +12,14 @@ export class InputManager {
         this.isMousePressed = false;
         this.lastMousePressed = false; // Track previous state for click detection
         this.debug = true; // Added for the new isKeyDown method
-        
+
         // Bind event handlers
         this.handleKeyDown = this.handleKeyDown.bind(this);
         this.handleKeyUp = this.handleKeyUp.bind(this);
         this.handleMouseMove = this.handleMouseMove.bind(this);
         this.handleMouseDown = this.handleMouseDown.bind(this);
         this.handleMouseUp = this.handleMouseUp.bind(this);
-        
+
         // Add event listeners
         window.addEventListener('keydown', this.handleKeyDown);
         window.addEventListener('keyup', this.handleKeyUp);
@@ -83,14 +83,19 @@ export class InputManager {
         return this.isMousePressed;
     }
 
+    isMouseClicked() {
+        return this.isMousePressed && !this.lastMousePressed;
+    }
+
     update() {
-        // Update previous keys state
-        this.previousKeys = new Set(this.keys);
-        
         // Update any input state that needs to be updated every frame
         if (this.isMousePressed) {
             console.log('Mouse is currently pressed at:', this.mousePosition);
         }
+
+        // Update previous keys state
+        this.previousKeys = new Set(this.keys);
+        this.lastMousePressed = this.isMousePressed;
     }
 
     /**

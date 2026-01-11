@@ -4,6 +4,7 @@ import { WaveConfig } from '../config/WaveConfig.js';
 import { GameConstants } from '../config/GameConstants.js';
 import { HeroConfig } from '../config/HeroConfig.js';
 import { GridConfig } from '../config/GridConfig.js';
+import { LevelConfig } from '../config/LevelConfig.js';
 
 export class LabManager {
     constructor(game) {
@@ -15,6 +16,7 @@ export class LabManager {
             'WaveConfig': WaveConfig,
             'HeroConfig': HeroConfig,
             'GridConfig': GridConfig,
+            'LevelConfig': LevelConfig
         };
 
         this.init();
@@ -125,6 +127,7 @@ export class LabManager {
     }
 
     renderMapTab() {
+        this.contentContainer.innerHTML = '';
         const gridSection = this.createSection('GRID SETTINGS');
 
         this.createInput(gridSection, 'Cell Size', GridConfig.CELL_SIZE, (val) => {
@@ -158,7 +161,115 @@ export class LabManager {
             GameConstants.PATH_WIDTH = parseInt(val);
         });
 
+        this.createInput(levelSection, 'Current Level', this.game.currentLevel, (val) => {
+            const level = parseInt(val);
+            if (LevelConfig[level]) {
+                this.game.currentLevel = level;
+                this.game.currentWave = 1; // Reset waves
+                this.game.restart();
+                this.showToast(`Switched to Level ${level}`);
+            } else {
+                this.showToast('Level not defined', true);
+            }
+        });
+
         this.contentContainer.appendChild(levelSection);
+
+        const pathSection = this.createSection('PATH SETTINGS');
+        const level = LevelConfig[this.game.currentLevel];
+
+        const mainBtnRow = document.createElement('div');
+        mainBtnRow.style.display = 'flex';
+        mainBtnRow.style.gap = '10px';
+        mainBtnRow.style.marginBottom = '15px';
+
+        const editBtn = document.createElement('button');
+        editBtn.textContent = this.game.isEditingPath ? '🛑 Stop Editing' : '🛤 Edit Path';
+        editBtn.style.flex = '1';
+        editBtn.style.padding = '10px';
+        editBtn.style.background = this.game.isEditingPath ? '#ff4444' : '#4444ff';
+        editBtn.style.color = 'white';
+        editBtn.style.border = 'none';
+        editBtn.style.borderRadius = '4px';
+        editBtn.style.cursor = 'pointer';
+        editBtn.style.fontWeight = 'bold';
+        editBtn.onclick = () => {
+            this.game.isEditingPath = !this.game.isEditingPath;
+            this.renderMapTab(); // Re-render to show sub-buttons
+            if (!this.game.isEditingPath) {
+                this.saveConfig('LevelConfig', LevelConfig);
+                this.showToast('Path Saved');
+            }
+        };
+
+        const clearBtn = document.createElement('button');
+        clearBtn.textContent = '🗑 Clear';
+        clearBtn.style.padding = '10px';
+        clearBtn.style.background = '#666';
+        clearBtn.style.color = 'white';
+        clearBtn.style.border = 'none';
+        clearBtn.style.borderRadius = '4px';
+        clearBtn.style.cursor = 'pointer';
+        clearBtn.onclick = () => {
+            if (confirm('Clear entire path?')) {
+                LevelConfig[this.game.currentLevel].path = [];
+                this.saveConfig('LevelConfig', LevelConfig);
+                this.renderMapTab();
+            }
+        };
+
+        mainBtnRow.appendChild(editBtn);
+        mainBtnRow.appendChild(clearBtn);
+        pathSection.appendChild(mainBtnRow);
+
+        // Sub-buttons for specific points
+        if (this.game.isEditingPath) {
+            const subBtnRow = document.createElement('div');
+            subBtnRow.style.display = 'grid';
+            subBtnRow.style.gridTemplateColumns = '1fr 1fr 1fr';
+            subBtnRow.style.gap = '5px';
+            subBtnRow.style.marginBottom = '15px';
+
+            const modes = [
+                { id: 'home', label: '📍 Home', color: '#ffaa44' },
+                { id: 'append', label: '➕ Point', color: '#44ffaa' },
+                { id: 'end', label: '🏁 End', color: '#ff44aa' }
+            ];
+
+            modes.forEach(mode => {
+                const btn = document.createElement('button');
+                btn.textContent = mode.label;
+                btn.style.padding = '8px 5px';
+                btn.style.fontSize = '12px';
+                btn.style.background = this.game.pathEditType === mode.id ? mode.color : '#333';
+                btn.style.color = this.game.pathEditType === mode.id ? 'black' : 'white';
+                btn.style.border = '1px solid ' + mode.color;
+                btn.style.borderRadius = '4px';
+                btn.style.cursor = 'pointer';
+                btn.onclick = () => {
+                    this.game.pathEditType = mode.id;
+                    this.renderMapTab();
+                };
+                subBtnRow.appendChild(btn);
+            });
+            pathSection.appendChild(subBtnRow);
+        }
+
+        if (level && level.path) {
+            const pathInfo = document.createElement('div');
+            pathInfo.style.fontSize = '11px';
+            pathInfo.style.color = '#aaa';
+            pathInfo.style.whiteSpace = 'pre-wrap';
+            pathInfo.textContent = `Points: ${level.path.map((p, i) => {
+                let prefix = '';
+                if (i === 0) prefix = '🏠';
+                else if (i === level.path.length - 1) prefix = '🚩';
+                else prefix = '•';
+                return `${prefix}(${p.x},${p.y})`;
+            }).join(' ')}`;
+            pathSection.appendChild(pathInfo);
+        }
+        this.contentContainer.appendChild(pathSection);
 
         this.renderLevelsSection();
     }
@@ -363,6 +474,7 @@ export class LabManager {
     }
 
     renderHeroTab() {
+        this.contentContainer.innerHTML = '';
         const wrapper = this.createSection('HERO');
 
         this.createInput(wrapper, 'Health', HeroConfig.health, (val) => {
@@ -399,6 +511,7 @@ export class LabManager {
     }
 
     renderWaveTab() {
+        this.contentContainer.innerHTML = '';
         WaveConfig.forEach((wave, index) => {
             const wrapper = this.createSection(`WAVE ${wave.waveNumber}`);
 
@@ -510,6 +623,7 @@ export class LabManager {
     }
 
     renderLabTab() {
+        this.contentContainer.innerHTML = '';
         const wrapper = this.createSection('Lab Settings');
 
         // Resolution Picker
@@ -586,6 +700,7 @@ export class LabManager {
     }
 
     renderCollectionTab(configName, configObj, defaultTemplate) {
+        this.contentContainer.innerHTML = '';
         // Add New Item Button
         const addBtn = document.createElement('button');
         addBtn.textContent = '+ Add New Item';
@@ -717,6 +832,29 @@ export class LabManager {
                 }, 'text');
             }
 
+            // Description
+            if (data.description !== undefined) {
+                this.createInput(wrapper, 'Description', data.description, (val) => {
+                    data.description = val;
+                    this.saveConfig(configName, configObj);
+                }, 'text');
+            }
+
+            // Projectile Type
+            if (data.projectileType !== undefined) {
+                this.createInput(wrapper, 'Projectile Type', data.projectileType, (val) => {
+                    data.projectileType = val;
+                    this.saveConfig(configName, configObj);
+                }, 'text');
+            }
+
+            // States (Operational Modes)
+            if (data.states !== undefined) {
+                this.renderStatesEditor(wrapper, data.states, () => {
+                    this.saveConfig(configName, configObj);
+                });
+            }
+
             this.contentContainer.appendChild(wrapper);
         });
     }
@@ -799,6 +937,110 @@ export class LabManager {
         };
 
         return div;
+    }
+
+    renderStatesEditor(container, states, onUpdate) {
+        const section = document.createElement('div');
+        section.style.marginTop = '15px';
+        section.style.padding = '10px';
+        section.style.border = '1px solid #444';
+        section.style.borderRadius = '4px';
+        section.style.background = '#1a1a1a';
+
+        const label = document.createElement('div');
+        label.textContent = 'Operational Modes:';
+        label.style.fontSize = '12px';
+        label.style.color = '#44ff44';
+        label.style.marginBottom = '10px';
+        label.style.fontWeight = 'bold';
+        section.appendChild(label);
+
+        states.forEach((state, index) => {
+            const stateWrapper = document.createElement('div');
+            stateWrapper.style.marginBottom = '15px';
+            stateWrapper.style.padding = '10px';
+            stateWrapper.style.background = '#222';
+            stateWrapper.style.borderRadius = '4px';
+            stateWrapper.style.position = 'relative';
+
+            // Remove State Button
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = '✖';
+            removeBtn.style.position = 'absolute';
+            removeBtn.style.right = '5px';
+            removeBtn.style.top = '5px';
+            removeBtn.style.padding = '2px 6px';
+            removeBtn.style.fontSize = '10px';
+            removeBtn.style.background = '#ff4444';
+            removeBtn.style.border = 'none';
+            removeBtn.style.borderRadius = '3px';
+            removeBtn.style.color = 'white';
+            removeBtn.style.cursor = 'pointer';
+            removeBtn.onclick = () => {
+                states.splice(index, 1);
+                onUpdate();
+                this.switchTab(this.currentTab);
+            };
+            stateWrapper.appendChild(removeBtn);
+
+            // Name
+            this.createInput(stateWrapper, 'Mode Name', state.name, (val) => {
+                state.name = val;
+                onUpdate();
+            }, 'text');
+
+            // Angle
+            this.createInput(stateWrapper, 'Angle (Arc)', state.angle, (val) => {
+                state.angle = parseFloat(val);
+                onUpdate();
+            });
+
+            // Range
+            this.createInput(stateWrapper, 'Range', state.range, (val) => {
+                state.range = parseFloat(val);
+                onUpdate();
+            });
+
+            // Damage
+            this.createInput(stateWrapper, 'Damage', state.damage, (val) => {
+                state.damage = parseFloat(val);
+                onUpdate();
+            });
+
+            // Attack Speed
+            this.createInput(stateWrapper, 'Attack Speed', state.attackSpeed, (val) => {
+                state.attackSpeed = parseFloat(val);
+                onUpdate();
+            });
+
+            section.appendChild(stateWrapper);
+        });
+
+        // Add State Button
+        const addStateBtn = document.createElement('button');
+        addStateBtn.textContent = '+ Add Operational Mode';
+        addStateBtn.style.width = '100%';
+        addStateBtn.style.padding = '5px';
+        addStateBtn.style.fontSize = '11px';
+        addStateBtn.style.background = '#4444ff';
+        addStateBtn.style.color = 'white';
+        addStateBtn.style.border = 'none';
+        addStateBtn.style.borderRadius = '3px';
+        addStateBtn.style.cursor = 'pointer';
+        addStateBtn.onclick = () => {
+            states.push({
+                name: "New Mode",
+                angle: 360,
+                range: 100,
+                attackSpeed: 1,
+                damage: 10
+            });
+            onUpdate();
+            this.switchTab(this.currentTab);
+        };
+        section.appendChild(addStateBtn);
+
+        container.appendChild(section);
     }
 
     createInput(parent, label, value, onChange, type = 'number', step = 1) {

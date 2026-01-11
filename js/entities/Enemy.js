@@ -16,7 +16,7 @@ export class Enemy extends Entity {
         ];
         this.currentPathIndex = 0;
         this.targetPoint = this.path[0];
-        
+
         // Debug log for enemy initialization
         console.log('Enemy created:', {
             type: this.type,
@@ -29,8 +29,8 @@ export class Enemy extends Entity {
         // Map enemy types to asset types
         const assetMap = {
             'basic': 'ENEMY_SCORPION',
-            'fast': 'ENEMY_SCORPION',
-            'tank': 'ENEMY_SCORPION'
+            'fast': 'ENEMY_FAST',
+            'tank': 'ENEMY_TANK'
         };
         return assetMap[this.type] || 'ENEMY_SCORPION';
     }
@@ -46,7 +46,7 @@ export class Enemy extends Entity {
             health: this.health,
             maxHealth: this.maxHealth
         };
-        
+
         // Debug log for draw data
         console.log('Enemy getDrawData:', drawData);
         return drawData;
@@ -62,7 +62,7 @@ export class Enemy extends Entity {
         const dx = this.targetPoint.x - this.x;
         const dy = this.targetPoint.y - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        
+
         // Update rotation to face movement direction
         this.rotation = Math.atan2(dy, dx);
 
